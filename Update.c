@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <unistd.h> 
 #include <string.h>
+#include <stdint.h>
 
 #include<sys/types.h>
 #include <sys/socket.h>
@@ -19,8 +20,9 @@ const char* DoUpdate(char* cmdarglist[])
 	char msg[64] = "successful";
 	char* rspcmd = NULL;
 	
-	char* CmdMain=NULL, ArgName=NULL, ArgSize=NULL, ArgMd5=NULL, ArgKey=NULL;
-	char* ArgVer=NULL, ArgIp=NULL, ArgPort=NULL;
+	char* CmdMain=NULL;
+	char* ArgName=NULL; char* ArgSize=NULL; char* ArgMd5=NULL; char* ArgKey=NULL;
+	char* ArgVer=NULL; char* ArgIp=NULL; char* ArgPort=NULL;
 
 	int i=0;
 	char *curcmdentry=0;

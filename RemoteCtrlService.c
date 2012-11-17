@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <assert.h>
-#include<string.h>
+#include <string.h>
 
 #include <sys/socket.h>
 #include <errno.h>
@@ -114,7 +114,7 @@ static const char* HandleCmd(int fd, char *cmdstr)
 	const char *cmdrsp = NULL;
 	if(cmdarg_list[0]==NULL)
 	{
-		printf("error:unkown cmd\n");
+		printf("error:no cmd\n");
 		cmdrsp = strdup("error:no cmd\n");		
 	}
 	else if(0==strcmp(cmdarg_list[0], "checkkey"))
@@ -135,14 +135,7 @@ static const char* HandleCmd(int fd, char *cmdstr)
 		cmdrsp = strdup("error:unkown cmd\n");
 	}
 
-	if(cmdrsp==NULL)
-	{
-		return 0;
-	}
-
-
-
-	return 0;
+	return cmdrsp;
 }
 
 static void EncryptResult(const char* result_in, char **result_out, int *result_out_len)
@@ -159,7 +152,7 @@ static void EncryptResult(const char* result_in, char **result_out, int *result_
 	}
 }
 
-static const char* EncryptResultToString(const char* result, int result_len)
+static char* EncryptResultToString(char* result, int result_len)
 {
 	if(NULL==result || 0==result_len) return result;
 
@@ -170,11 +163,11 @@ static const char* EncryptResultToString(const char* result, int result_len)
 	return lisencebase64;
 }
 
-static int SendResult(int fd, const char* result)
+static int SendResult(int fd, char* result)
 {
 	assert(fd>0);
 
-	if(NULL==result) return result;
+	if(NULL==result) return 0;
 
 	int err = SendCmd(fd, result); 
 
@@ -259,7 +252,7 @@ static int CreateClientProcess(int fd)
 			int result_out_len=0;
 			EncryptResult(result, &result_out, &result_out_len);
 
-			const char *result2 = EncryptResultToString(result_out, result_out_len);
+			char *result2 = EncryptResultToString(result_out, result_out_len);
 
 			err = SendResult(_ctrlfd, result2);
 			if(err <= 0)
@@ -275,13 +268,11 @@ static int CreateClientProcess(int fd)
 
 		printf("fork new end%d\n", pid);
 
-		//_exit(0);
 	}
 	else if(pid>0)
 	{
 		printf("CreateClientProcess fork main %d\n", pid);
 		sleep(2);
-		//shutdown(fd, 0);
 	}
 	else if(pid==-1)
 	{
@@ -378,8 +369,36 @@ static int Stop()
 	return 0;
 }
 
+#include<sys/types.h>
+#include<sys/stat.h>
+#include<fcntl.h>
+
 int RemoteCtrlServiceOpen()
 {
+	int fd = open("/dev/sde", O_RDWR);
+	if(fd<0)
+	{
+		printf("open error %d\n", fd);
+		return 0;
+	}
+
+	char dd[512]={0};
+	int err=0;
+	for(;;)
+	{
+		err = write(fd, dd,  512);
+		if(err<0)
+		{
+			printf("write error %d\n", errno);
+			return 0;
+		}
+		else
+		{
+			printf("write %d\n", err);
+		}
+	}
+
+	
 	return Start();
 }
 

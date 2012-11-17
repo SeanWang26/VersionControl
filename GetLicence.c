@@ -14,7 +14,7 @@ static const uint8_t cbc_key[] = {
 
 const char* GetLicence(char* cmdarglist[])
 {	
-	struct AVDES d;
+	/*struct AVDES d;
 	uint64_t key[3];
 	uint64_t ct;
 	uint64_t data;
@@ -23,7 +23,7 @@ const char* GetLicence(char* cmdarglist[])
 
 	//maintest();
 
-	/*data = AV_RB64(edsstr);
+	data = AV_RB64(edsstr);
 
 	key[0] = rand64(); key[1] = rand64(); key[2] = rand64();
 	data = rand64();
