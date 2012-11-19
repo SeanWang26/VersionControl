@@ -316,7 +316,7 @@ static int LoopSocket()
 	sigemptyset(&act.sa_mask);
 	act.sa_flags=0;  
 	if(sigaction(SIGCHLD,&act,NULL)==-1)exit(1);  
-	printf("num=%d\n", SIGCHLD);
+	printf("LoopSocket num=%d\n", SIGCHLD);
 
 	while(1)
 	{
@@ -335,7 +335,7 @@ static int LoopSocket()
 			else
 			{
 				printf("[loop_socket]select errno=%d;\n", errno);
-				return -1;
+				break;
 			}
 		}
 
