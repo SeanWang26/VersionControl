@@ -332,7 +332,8 @@ void av_des_crypt(AVDES *d, uint8_t *dst, const uint8_t *src, int count, uint8_t
         AV_WB64(iv, iv_val);
 }
 
-#define TEST
+
+//#define TEST
 #ifdef TEST
 #undef printf
 #undef rand
@@ -345,6 +346,7 @@ static uint64_t rand64(void) {
     r = (r << 32) | rand();
     return r;
 }
+
 
 static const uint8_t test_key[] = {0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0};
 static const DECLARE_ALIGNED(8, uint8_t, plain)[] = {0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10};
@@ -360,6 +362,7 @@ static const uint8_t cbc_key[] = {
 static int run_test(int cbc, int decrypt) {
     AVDES d;
     int delay = cbc && !decrypt ? 2 : 1;
+	
     uint64_t res;
     AV_WB64(large_buffer[0], 0x4e6f772069732074ULL);
     AV_WB64(large_buffer[1], 0x1234567890abcdefULL);
@@ -367,20 +370,41 @@ static int run_test(int cbc, int decrypt) {
     av_des_init(&d, cbc_key, 192, decrypt);
     av_des_crypt(&d, large_buffer[delay], large_buffer[0], 10000, cbc ? tmp : NULL, decrypt);
     res = AV_RB64(large_buffer[9999 + delay]);
-    if (cbc) {
+	printf("cbc=%d, decrypt=%d ", cbc, decrypt);	
+	if (cbc) {
         if (decrypt)
-            return res == 0xc5cecf63ecec514cULL;
+            printf("0x%x == 0xc5cecf63ecec514cULL;\n", res);			
         else
-            return res == 0xcb191f85d1ed8439ULL;
+			
+            //return res == 0xcb191f85d1ed8439ULL;
+		 printf("0x%x == 0xcb191f85d1ed8439ULL;\n", res);
     } else {
         if (decrypt)
-            return res == 0x8325397644091a0aULL;
+           // return res == 0x8325397644091a0aULL;
+            printf("0x%x == 0x8325397644091a0aULL;\n", res);
         else
-            return res == 0xdd17e8b8b437d232ULL;
+           // return res == 0xdd17e8b8b437d232ULL;
+		 printf("0x%x == 0xdd17e8b8b437d232ULL;\n", res);
     }
+
+	return 0;
 }
 
 int maintest(void) {
+	int res = run_test(1, 0);
+	printf(", res=%d\n", res);
+
+	 res = run_test(1, 0);
+	 printf(", res=%d\n", res);
+
+	 res = run_test(0, 1);
+	 printf(", res=%d\n", res);
+
+	 res = run_test(0, 1);
+	 printf(", res=%d\n", res);
+}
+
+int maintest2(void) {
     AVDES d;
     int i;
 //#define GENTABLES

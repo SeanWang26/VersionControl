@@ -48,7 +48,8 @@ int av_des_init(struct AVDES *d, const uint8_t *key, int key_bits, int decrypt);
  * @param decrypt 0 for encryption, 1 for decryption
  */
 void av_des_crypt(struct AVDES *d, uint8_t *dst, const uint8_t *src, int count, uint8_t *iv, int decrypt);
-int maintest(void);
+//int maintest(void);
 
+//int maintest2(void);
 
 #endif /* AVUTIL_DES_H */

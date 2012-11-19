@@ -17,6 +17,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include "Base64.h"
+#include "des.h"
 
 
 
@@ -138,7 +139,7 @@ static const char* HandleCmd(int fd, char *cmdstr)
 	return cmdrsp;
 }
 
-static void EncryptResult(const char* result_in, char **result_out, int *result_out_len)
+static int EncryptResult(const char* result_in, char **result_out, int *result_out_len)
 {
 	if(NULL==result_in) 
 	{
@@ -147,9 +148,29 @@ static void EncryptResult(const char* result_in, char **result_out, int *result_
 	}
 	else
 	{
-		*result_out = strdup(result_in);
+		static const uint8_t cbc_key[] = {
+			0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+			0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01,
+			0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01, 0x23
+		};
+		struct AVDES d;
+		uint8_t vi[8] = {0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef};
+		//(*(uint64_t *)(vi) = (0x1234567890abcdefULL));
+		int res = av_des_init(&d, cbc_key, 192, 0);
+		if(res!=0)
+			return -1;
 		*result_out_len = strlen(result_in);
+		av_des_crypt(&d, (uint8_t *)result_in, (const uint8_t *)result_in, strlen(result_in), vi, 0);
+		*result_out = (char*)result_in;
+
+		
+		//av_des_crypt(&d, buf, buf, sizeof(buf)-1, vi, 1);
+
+		//*result_out = strdup(result_in);
+		//*result_out_len = strlen(result_in);
 	}
+
+	return 0;
 }
 
 static char* EncryptResultToString(char* result, int result_len)
@@ -375,7 +396,7 @@ static int Stop()
 
 int RemoteCtrlServiceOpen()
 {
-	int fd = open("/dev/sde", O_RDWR);
+	/*int fd = open("/dev/sde", O_RDWR);
 	if(fd<0)
 	{
 		printf("open error %d\n", fd);
@@ -396,9 +417,82 @@ int RemoteCtrlServiceOpen()
 		{
 			printf("write %d\n", err);
 		}
-	}
+	}*/
+
 
 	
+	/*static const uint8_t cbc_key[] = {
+		0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+		0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01,
+		0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01, 0x23
+	};
+	
+	struct AVDES d;
+	int res = av_des_init(&d, cbc_key, 192, 0);
+	int i;
+	for(i=0; i<3; ++i)
+	{
+		int j; 
+		for(j=0; j<3; ++j)
+		{
+			printf("0x%lld ", d.round_keys[i][j]);
+		}
+		printf("\n");
+	}
+	printf("triple_des=%d\n", d.triple_des);
+	
+	int j;
+	char buf[] = "12345678901234567890123456789012345678901234567890"
+				"12345678901234567890123456789012345678912345678900"
+				"12345678901234567890123456789012345678901234567890"
+				"12345678901234567890123456789012345678901234567890"
+				"12345678901234567890123456789012345678901234567890"
+				"12345678901234567890123456789012345678901234567890"
+				"12345678901234567890123456789012345678901234567890"
+				"12345678901234567890123456789012345678901234567890";
+	printf("plain1:");
+	for(j=0; j<sizeof(buf); ++j)
+	{
+		printf("%d ", buf[j]);
+	}
+	printf("\n");
+	
+	uint8_t vi[8];
+	(*(uint64_t *)(vi) = (0x1234567890abcdefULL));
+
+	printf("\n");
+	av_des_crypt(&d, buf, buf, sizeof(buf)-1, vi, 0);
+
+	printf("cipher:");
+	for(j=0; j<sizeof(buf)-1; ++j)
+	{
+		printf("%d ", buf[j]);
+	}
+	printf("\n");
+
+	printf("vi1:");
+	for(j=0; j<8; ++j)
+	{
+		printf("%x ", vi[j]);
+	}
+	printf("\n");
+	(*(uint64_t *)(vi) = (0x1234567890abcdefULL));
+	av_des_crypt(&d, buf, buf, sizeof(buf)-1, vi, 1);
+
+	printf("plain2:");
+	for(j=0; j<sizeof(buf); ++j)
+	{
+		printf("%d ", buf[j]);
+	}
+	printf("\n");
+	printf("vi2:");
+	for(j=0; j<8; ++j)
+	{
+		printf("%x ", vi[j]);
+	}	
+	printf("\n");
+	//maintest();
+	//maintest2();*/
 	return Start();
 }
 
