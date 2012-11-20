@@ -27,7 +27,7 @@ int GetDiskSerialNumber(char* buf, size_t max)
 
 	snprintf (buf, max, "%s", hid.serial_no);
 
-	printf("SerialNumber:%s\n", buf);
+	//printf("SerialNumber:%s\n", buf);
 
 	return strlen(buf);
 }

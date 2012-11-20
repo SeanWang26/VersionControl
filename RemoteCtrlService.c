@@ -163,8 +163,24 @@ static int EncryptResult(const char* result_in, char **result_out, int *result_o
 		av_des_crypt(&d, (uint8_t *)result_in, (const uint8_t *)result_in, strlen(result_in), vi, 0);
 		*result_out = (char*)result_in;
 
-		
-		//av_des_crypt(&d, buf, buf, sizeof(buf)-1, vi, 1);
+		printf("cihper:");
+		int i;
+		for(i=0; i<*result_out_len; ++i)
+		{
+			printf("0x%2x  ", result_in[i]);
+		}
+		printf("\n");
+
+		uint8_t tbuf[1024];
+		uint8_t vi2[8] = {0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef};
+		av_des_crypt(&d, tbuf,  result_in, *result_out_len, vi2, 1);
+		printf("plain:");
+		for(i=0; i<*result_out_len; ++i)
+		{
+			printf("0x%2x  ", tbuf[i]);
+		}
+		printf("\n");
+
 
 		//*result_out = strdup(result_in);
 		//*result_out_len = strlen(result_in);
@@ -248,26 +264,25 @@ static int CreateClientProcess(int fd)
 	pid=fork();
 	if(pid==0)
 	{
-		printf("fork new %d\n", pid);
-		close(_listenfd);
-		int _ctrlfd = fd;
+		printf("fork new pid=%d, _ctrlfd=%d\n", pid, _ctrlfd);
+		//close(_listenfd);
 		char *_recvBuf = 0;
 		int RECV_BUFF_LEN = 1024;
 		while((_recvBuf = (char *)malloc(RECV_BUFF_LEN))==NULL)
 		{
 			sleep(1);
 		}
-
+		
 		while(1)
 		{
-			int err = ReadCmd(_ctrlfd, _recvBuf, RECV_BUFF_LEN);
+			int err = ReadCmd(fd, _recvBuf, RECV_BUFF_LEN);
 			if(err <= 0)
 			{
-				printf("ReadCmd connect close %d\n", _ctrlfd);
+				printf("ReadCmd connect close %d\n", fd);
 				break;
 			}
 			
-			const char* result = HandleCmd(_ctrlfd, _recvBuf);
+			const char* result = HandleCmd(fd, _recvBuf);
 
 			char *result_out=NULL;
 			int result_out_len=0;
@@ -275,7 +290,7 @@ static int CreateClientProcess(int fd)
 
 			char *result2 = EncryptResultToString(result_out, result_out_len);
 
-			err = SendResult(_ctrlfd, result2);
+			err = SendResult(fd, result2);
 			if(err <= 0)
 			{
 				printf("SendResult error\n");
@@ -285,14 +300,16 @@ static int CreateClientProcess(int fd)
 
 		if(_recvBuf) free(_recvBuf);
 		
-		shutdown(_ctrlfd, SHUT_RD);
+		shutdown(fd, SHUT_RD);
 
+		exit(0);
 		printf("fork new end%d\n", pid);
 
 	}
 	else if(pid>0)
 	{
 		printf("CreateClientProcess fork main %d\n", pid);
+		_ctrlfd = fd;
 		sleep(2);
 	}
 	else if(pid==-1)
@@ -323,10 +340,13 @@ static int LoopSocket()
 		FD_ZERO(&_fdset);
 		FD_SET(_listenfd, &_fdset);
 
-		tv.tv_sec = 600;
+		tv.tv_sec = 60000;
 		tv.tv_usec = 0;
+
+		printf("while 60000\n");
+		
 		//assume _ctrlfd always big than _listenfd, it should be!
-		if(-1==select(1+((_listenfd>_ctrlfd)?_listenfd:_ctrlfd) , &_fdset, NULL, NULL, &tv))
+		if(-1==select(1+_listenfd , &_fdset, NULL, NULL, &tv))
 		{
 			if(EINTR==errno)
 			{
@@ -338,6 +358,7 @@ static int LoopSocket()
 				break;
 			}
 		}
+		
 
 		if(FD_ISSET(_listenfd, &_fdset))
 		{
@@ -347,18 +368,16 @@ static int LoopSocket()
 			int tfd = accept(_listenfd, (struct sockaddr *)&addr, &addr_len);
 			if(tfd>0)
 			{
-			
 				if(_ctrlfd == -1)
 				{
-					CreateClientProcess(tfd);
-					_ctrlfd = tfd;
+					CreateClientProcess(tfd);					
 				}
 				else
 				{
 					printf("server be occupied by %d\n", _ctrlfd);
 					SendCmd(tfd, "error:server be occupied\n");
 					shutdown(tfd, 0);
-				}		
+				}
 			}
 		}
 	

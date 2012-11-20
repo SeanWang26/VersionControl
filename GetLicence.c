@@ -42,23 +42,34 @@ const char* GetLicence(char* cmdarglist[])
 	sprintf(reschar, "%s", "getlisence");
 
 	//2.add disk number serial
-	char DiskSerialNumber[20];
+	/*char DiskSerialNumber[20];
 	int n = GetDiskSerialNumber(DiskSerialNumber, 20);
 	if(n)
 	sprintf(reschar, "%s:disksn=%s", reschar, DiskSerialNumber);
-
+	*/
 	//3.add time  "2001.12.1 20-12-39" to avoid ':'
 	time_t timep;
 	struct tm *p;
 	time(&timep);
 	p=localtime(&timep);
 	
-	sprintf(reschar, "%s:systime=%02d.%02d.%02d %02d-%02d-%02d", reschar
+	/*sprintf(reschar, "systime=%02d.%02d.%02d %02d-%02d-%02d"
 		, (1900+p->tm_year), (1+p->tm_mon), p->tm_mday, 
 		p->tm_hour, p->tm_min, p->tm_sec);
+	*/
+	sprintf(reschar, "systime=2012.11.20 17-09-38");
+
 
 
 	printf("GetLicence:%s\n", reschar);
+	printf("GetLicence %d:", strlen(reschar));
+	int i;
+	for(i=0; i<strlen(reschar); ++i)
+	{
+		printf("0x%02x  ", reschar[i]);
+	}
+	printf("\n");
+
 	//unsigned resultSize=0;
 	//char* dele = base64Decode(lisencebase64, &resultSize, 0);
 	//if(resultSize>0)
