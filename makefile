@@ -11,7 +11,7 @@ TSRC = RemoteServerMain.c RemoteCtrlService.c dlink.c Update.c GetLicence.c Chec
 all : lnvrDaemon.out RemoteServer.out
 
 lnvrDaemon.out : $(SRC)
-	$(CC) -O2 -Wall -o $@ $^ -lrt -lpthread
+	$(CC) -Wall -o $@ $^ -lrt -lpthread
 
 RemoteServer.out : $(TSRC)
 	$(CC) -O2 -Wall -o $@ $^ -lrt -lpthread

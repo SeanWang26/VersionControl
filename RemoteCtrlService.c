@@ -116,7 +116,7 @@ static const char* HandleCmd(int fd, char *cmdstr)
 	if(cmdarg_list[0]==NULL)
 	{
 		printf("error:no cmd\n");
-		cmdrsp = strdup("error:no cmd\n");		
+		cmdrsp = strdup("error:no cmd\n");	
 	}
 	else if(0==strcmp(cmdarg_list[0], "checkkey"))
 	{
@@ -148,6 +148,20 @@ static int EncryptResult(const char* result_in, char **result_out, int *result_o
 	}
 	else
 	{
+		int result_in_len = strlen(result_in);
+		int ciphertxtlen = (result_in_len/8+1)*8;
+		uint8_t *ciphertxt = malloc(ciphertxtlen+32);
+		//uint8_t *ciphertxt2 = malloc(32);
+		//memset(ciphertxt, 0, ciphertxtlen);
+		if(ciphertxt==NULL)
+		{
+			printf("EncryptResult malloc failed\n");
+		}
+
+		printf("ciphertxtlen=%d, result_in_len=%d\n", ciphertxtlen, result_in_len);
+		//memcpy(ciphertxt, result_in, result_in_len);
+		//free(result_in);
+
 		static const uint8_t cbc_key[] = {
 			0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
 			0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01,
@@ -159,27 +173,31 @@ static int EncryptResult(const char* result_in, char **result_out, int *result_o
 		int res = av_des_init(&d, cbc_key, 192, 0);
 		if(res!=0)
 			return -1;
-		*result_out_len = strlen(result_in);
-		av_des_crypt(&d, (uint8_t *)result_in, (const uint8_t *)result_in, strlen(result_in), vi, 0);
-		*result_out = (char*)result_in;
 
-		printf("cihper:");
+		printf("1 ciphertxt = %p\n", ciphertxt);
+		av_des_crypt(&d, ciphertxt, ciphertxt, ciphertxtlen, vi, 0);
+		printf("2 ciphertxt = %p\n", ciphertxt);
+
+		*result_out_len = ciphertxtlen;
+		*result_out = (char*)ciphertxt;
+
+		/*printf("cihper:");
 		int i;
 		for(i=0; i<*result_out_len; ++i)
 		{
-			printf("0x%2x  ", result_in[i]);
+			printf("0x%2x  ", ciphertxt[i]);
 		}
 		printf("\n");
 
 		uint8_t tbuf[1024];
 		uint8_t vi2[8] = {0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef};
-		av_des_crypt(&d, tbuf,  result_in, *result_out_len, vi2, 1);
+		av_des_crypt(&d, tbuf,  ciphertxt, *result_out_len, vi2, 1);
 		printf("plain:");
 		for(i=0; i<*result_out_len; ++i)
 		{
 			printf("0x%2x  ", tbuf[i]);
 		}
-		printf("\n");
+		printf("\n");*/
 
 
 		//*result_out = strdup(result_in);
@@ -193,6 +211,8 @@ static char* EncryptResultToString(char* result, int result_len)
 {
 	if(NULL==result || 0==result_len) return result;
 
+	char * tes = malloc(32);
+	printf("len=%d\n", result_len);//len=%zu
 	char* lisencebase64 = base64Encode(result, result_len);
 	printf("base64:%s, len=%zu\n", lisencebase64, strlen(lisencebase64));
 	free(result);
@@ -264,7 +284,7 @@ static int CreateClientProcess(int fd)
 	pid=fork();
 	if(pid==0)
 	{
-		printf("fork new pid=%d, _ctrlfd=%d\n", pid, _ctrlfd);
+		printf("fork new pid=%d, fd=%d\n", pid, fd);
 		//close(_listenfd);
 		char *_recvBuf = 0;
 		int RECV_BUFF_LEN = 1024;

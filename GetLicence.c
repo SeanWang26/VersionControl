@@ -14,29 +14,6 @@ static const uint8_t cbc_key[] = {
 
 const char* GetLicence(char* cmdarglist[])
 {	
-	/*struct AVDES d;
-	uint64_t key[3];
-	uint64_t ct;
-	uint64_t data;
-
-	char edsstr[] = "des test string haha\n";
-
-	//maintest();
-
-	data = AV_RB64(edsstr);
-
-	key[0] = rand64(); key[1] = rand64(); key[2] = rand64();
-	data = rand64();
-	av_des_init(&d, key, 192, 0);
-	av_des_crypt(&d, &ct, &data, 1, NULL, 0);
-	av_des_init(&d, key, 192, 1);
-	av_des_crypt(&d, &ct, &ct, 1, NULL, 1);
-	if (ct != data) {
-		printf("Test 2 failed\n");
-		return 1;
-	}*/
-
-
 	char *reschar = malloc(1024);//not good
 	//1.add cmd head
 	sprintf(reschar, "%s", "getlisence");
@@ -66,7 +43,7 @@ const char* GetLicence(char* cmdarglist[])
 	int i;
 	for(i=0; i<strlen(reschar); ++i)
 	{
-		printf("0x%02x  ", reschar[i]);
+		printf("0x%2x  ", reschar[i]);
 	}
 	printf("\n");
 
