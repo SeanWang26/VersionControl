@@ -11,10 +11,10 @@ TSRC = RemoteServerMain.c RemoteCtrlService.c dlink.c Update.c GetLicence.c Chec
 all : lnvrDaemon.out RemoteServer.out
 
 lnvrDaemon.out : $(SRC)
-	$(CC) -Wall -o $@ $^ -lrt -lpthread
+	$(CC) -Wall -o $@ $^ liblua.a libcrypto.a -lrt -lpthread
 
 RemoteServer.out : $(TSRC)
-	$(CC) -O2 -Wall -o $@ $^ -lrt -lpthread
+	$(CC) -O2 -Wall -o $@ $^ liblua.a libcrypto.a -lrt -lpthread
 
 #%.o: %.c
 #	$(CC) -O2 -c $< -lrt -lpthread

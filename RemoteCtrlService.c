@@ -18,6 +18,7 @@
 #include <sys/wait.h>
 #include "Base64.h"
 #include "des.h"
+#include "openssl/des.h"
 
 
 
@@ -148,7 +149,77 @@ static int EncryptResult(const char* result_in, char **result_out, int *result_o
 	}
 	else
 	{
-		int result_in_len = strlen(result_in);
+
+		des_key_schedule ks,ks2,ks3;
+		static unsigned char cbc_key [8]={0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef};
+		static unsigned char cbc2_key[8]={0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01};
+		static unsigned char cbc3_key[8]={0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01, 0x23};	
+		static unsigned char cbc_iv [8]={0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef};
+		static char cbc_data[32]="7654321 Now is the time for ";
+		printf("cbc_data size = %uz\n", strlen(cbc_data));
+		
+		des_cblock iv3;
+		unsigned char cbc_out[32];
+		int j, err=0;
+		if ((j=DES_set_key_checked(&cbc_key,&ks)) != 0)
+		{
+			printf("Key error %d\n",j);
+			err=1;
+		}
+		if ((j=DES_set_key_checked(&cbc2_key,&ks2)) != 0)
+		{
+			printf("Key error %d\n",j);
+			err=1;
+		}
+		if ((j=DES_set_key_checked(&cbc3_key,&ks3)) != 0)
+		{
+			printf("Key error %d\n",j);
+			err=1;
+		}
+
+		memcpy(iv3,cbc_iv,sizeof(cbc_iv));	
+
+		j = 32;
+		printf("plain:");
+		int i;
+		for(i=0; i<j; ++i)
+		{
+			printf("0x%2x  ", cbc_data[i]);
+		}
+		printf("\n");
+
+		des_ede3_cbc_encrypt(cbc_data,cbc_out,16L,ks,ks2,ks3,&iv3,
+					 DES_ENCRYPT);
+
+		des_ede3_cbc_encrypt(&(cbc_data[16]),&(cbc_out[16]),j-16,ks,ks2,ks3,
+						 &iv3,DES_ENCRYPT);
+
+		printf("cihper:");
+		for(i=0; i<j; ++i)
+		{
+			printf("0x%2x  ", cbc_out[i]);
+		}
+		printf("\n");
+
+		*result_out_len = j;
+		*result_out = malloc(*result_out_len);
+		memcpy(*result_out, cbc_out, *result_out_len);
+
+		unsigned char cbc_in[32];
+		memcpy(iv3,cbc_iv,sizeof(cbc_iv));
+		memset(cbc_in,0,32);
+		des_ede3_cbc_encrypt(cbc_out,cbc_in,j,ks,ks2,ks3,&iv3,DES_DECRYPT);
+
+		printf("plain:");
+		for(i=0; i<32; ++i)
+		{
+			printf("0x%2x  ", cbc_in[i]);
+		}
+		printf("\n");
+
+
+		
+/*		int result_in_len = strlen(result_in);
 		int ciphertxtlen = (result_in_len/8+1)*8;
 		uint8_t *ciphertxt = malloc(ciphertxtlen+32);
 		//uint8_t *ciphertxt2 = malloc(32);
@@ -173,15 +244,24 @@ static int EncryptResult(const char* result_in, char **result_out, int *result_o
 		int res = av_des_init(&d, cbc_key, 192, 0);
 		if(res!=0)
 			return -1;
+		
+		char * tes = malloc(32);
+		printf("tes = %p\n", tes);
 
 		printf("1 ciphertxt = %p\n", ciphertxt);
 		av_des_crypt(&d, ciphertxt, ciphertxt, ciphertxtlen, vi, 0);
 		printf("2 ciphertxt = %p\n", ciphertxt);
 
+		//char * tes2 = malloc(32);
+		//printf("tes2 = %p\n", tes);
+
+
 		*result_out_len = ciphertxtlen;
 		*result_out = (char*)ciphertxt;
+*/
 
-		/*printf("cihper:");
+
+/*		printf("cihper:");
 		int i;
 		for(i=0; i<*result_out_len; ++i)
 		{
@@ -197,7 +277,8 @@ static int EncryptResult(const char* result_in, char **result_out, int *result_o
 		{
 			printf("0x%2x  ", tbuf[i]);
 		}
-		printf("\n");*/
+		printf("\n");
+*/
 
 
 		//*result_out = strdup(result_in);
@@ -210,8 +291,7 @@ static int EncryptResult(const char* result_in, char **result_out, int *result_o
 static char* EncryptResultToString(char* result, int result_len)
 {
 	if(NULL==result || 0==result_len) return result;
-
-	char * tes = malloc(32);
+	
 	printf("len=%d\n", result_len);//len=%zu
 	char* lisencebase64 = base64Encode(result, result_len);
 	printf("base64:%s, len=%zu\n", lisencebase64, strlen(lisencebase64));
@@ -288,10 +368,13 @@ static int CreateClientProcess(int fd)
 		//close(_listenfd);
 		char *_recvBuf = 0;
 		int RECV_BUFF_LEN = 1024;
+		
 		while((_recvBuf = (char *)malloc(RECV_BUFF_LEN))==NULL)
 		{
 			sleep(1);
 		}
+
+		printf("_recvBuf=%p\n", _recvBuf);
 		
 		while(1)
 		{

@@ -25,6 +25,7 @@
 #include "des.h"
 
 #define DECLARE_ALIGNED(n,t,v)      t __attribute__ ((aligned (n))) v
+#define CONFIG_SMALL 1
 
 typedef struct AVDES AVDES;
 
@@ -307,7 +308,7 @@ void av_des_crypt(AVDES *d, uint8_t *dst, const uint8_t *src, int count, uint8_t
     uint64_t iv_val = iv ? AV_RB64(iv) : 0;
     while (count-- > 0) {
         uint64_t dst_val;
-        uint64_t src_val = src ? AV_RB64(src) : 0;
+        uint64_t src_val = src ? AV_RB64(src) : 0;/////////////////////////////
         if (decrypt) {
             uint64_t tmp = src_val;
             if (d->triple_des) {
@@ -317,19 +318,35 @@ void av_des_crypt(AVDES *d, uint8_t *dst, const uint8_t *src, int count, uint8_t
             dst_val = des_encdec(src_val, d->round_keys[0], 1) ^ iv_val;
             iv_val = iv ? tmp : 0;
         } else {
+			//char * tes3 = malloc(32);
+			//printf("tes3 = %p\n", tes3);
             dst_val = des_encdec(src_val ^ iv_val, d->round_keys[0], 0);
             if (d->triple_des) {
                 dst_val = des_encdec(dst_val, d->round_keys[1], 1);
                 dst_val = des_encdec(dst_val, d->round_keys[2], 0);
             }
+			//char * tes4 = malloc(32);
+			//printf("tes4 = %p\n", tes4);
             iv_val = iv ? dst_val : 0;
         }
-        AV_WB64(dst, dst_val);
+        AV_WB64(dst, dst_val);/////////////////////////
+		//char * tes5 = malloc(32);
+		//printf("tes5 = %p\n", tes5);
         src += 8;
         dst += 8;
+		//char * tes6 = malloc(32);
+		//printf("tes6 = %p\n", tes6);
+
     }
+
+	//char * tes8 = malloc(32);
+	//printf("tes8 = %p\n", tes8);
+
     if (iv)
         AV_WB64(iv, iv_val);
+
+	//char * tes7 = malloc(32);
+	//printf("tes7 = %p\n", tes7);
 }
 
 
