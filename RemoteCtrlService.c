@@ -146,143 +146,50 @@ static int EncryptResult(const char* result_in, char **result_out, int *result_o
 	{
 		*result_out=0;
 		*result_out_len=0;
+
+		return -1;
 	}
 	else
 	{
-
 		des_key_schedule ks,ks2,ks3;
 		static unsigned char cbc_key [8]={0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef};
 		static unsigned char cbc2_key[8]={0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01};
 		static unsigned char cbc3_key[8]={0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01, 0x23};	
 		static unsigned char cbc_iv [8]={0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef};
-		static char cbc_data[32]="7654321 Now is the time for ";
-		printf("cbc_data size = %uz\n", strlen(cbc_data));
 		
 		des_cblock iv3;
-		unsigned char cbc_out[32];
-		int j, err=0;
-		if ((j=DES_set_key_checked(&cbc_key,&ks)) != 0)
-		{
-			printf("Key error %d\n",j);
-			err=1;
-		}
-		if ((j=DES_set_key_checked(&cbc2_key,&ks2)) != 0)
-		{
-			printf("Key error %d\n",j);
-			err=1;
-		}
-		if ((j=DES_set_key_checked(&cbc3_key,&ks3)) != 0)
-		{
-			printf("Key error %d\n",j);
-			err=1;
-		}
-
-		memcpy(iv3,cbc_iv,sizeof(cbc_iv));	
-
-		j = 32;
-		printf("plain:");
-		int i;
-		for(i=0; i<j; ++i)
-		{
-			printf("0x%2x  ", cbc_data[i]);
-		}
-		printf("\n");
-
-		des_ede3_cbc_encrypt(cbc_data,cbc_out,16L,ks,ks2,ks3,&iv3,
-					 DES_ENCRYPT);
-
-		des_ede3_cbc_encrypt(&(cbc_data[16]),&(cbc_out[16]),j-16,ks,ks2,ks3,
-						 &iv3,DES_ENCRYPT);
-
-		printf("cihper:");
-		for(i=0; i<j; ++i)
-		{
-			printf("0x%2x  ", cbc_out[i]);
-		}
-		printf("\n");
-
-		*result_out_len = j;
-		*result_out = malloc(*result_out_len);
-		memcpy(*result_out, cbc_out, *result_out_len);
-
-		unsigned char cbc_in[32];
 		memcpy(iv3,cbc_iv,sizeof(cbc_iv));
-		memset(cbc_in,0,32);
-		des_ede3_cbc_encrypt(cbc_out,cbc_in,j,ks,ks2,ks3,&iv3,DES_DECRYPT);
 
-		printf("plain:");
-		for(i=0; i<32; ++i)
+		if (DES_set_key_checked(&cbc_key,&ks) != 0 
+		 || DES_set_key_checked(&cbc2_key,&ks2) != 0 
+		 || DES_set_key_checked(&cbc3_key,&ks3) != 0)
 		{
-			printf("0x%2x  ", cbc_in[i]);
-		}
-		printf("\n");
-
-
-		
-/*		int result_in_len = strlen(result_in);
-		int ciphertxtlen = (result_in_len/8+1)*8;
-		uint8_t *ciphertxt = malloc(ciphertxtlen+32);
-		//uint8_t *ciphertxt2 = malloc(32);
-		//memset(ciphertxt, 0, ciphertxtlen);
-		if(ciphertxt==NULL)
-		{
-			printf("EncryptResult malloc failed\n");
-		}
-
-		printf("ciphertxtlen=%d, result_in_len=%d\n", ciphertxtlen, result_in_len);
-		//memcpy(ciphertxt, result_in, result_in_len);
-		//free(result_in);
-
-		static const uint8_t cbc_key[] = {
-			0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
-			0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01,
-			0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01, 0x23
-		};
-		struct AVDES d;
-		uint8_t vi[8] = {0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef};
-		//(*(uint64_t *)(vi) = (0x1234567890abcdefULL));
-		int res = av_des_init(&d, cbc_key, 192, 0);
-		if(res!=0)
+			printf("Key error \n");
 			return -1;
+		}
+
+		int result_in_len = strlen(result_in);
+		int cbc_out_len = (result_in_len+15)/16*16+16;
+		unsigned char *cbc_in = malloc(cbc_out_len);
+		unsigned char *cbc_out = malloc(cbc_out_len);
+		memset(cbc_in, 0, cbc_out_len);
+
+		memcpy(cbc_in, result_in, result_in_len);
+
+		printf("1 %d\n",cbc_out_len);
+		int i, j=cbc_out_len/16;
+		for(i=0; i<j; ++i)
+		{
+			des_ede3_cbc_encrypt(cbc_in+i*16,cbc_out+i*16,16L,ks,ks2,ks3,&iv3,
+						 DES_ENCRYPT);
+			printf("1\n");
+		}
+
+		free(cbc_in);
 		
-		char * tes = malloc(32);
-		printf("tes = %p\n", tes);
+		*result_out_len = cbc_out_len;
+		*result_out = (char*)cbc_out;
 
-		printf("1 ciphertxt = %p\n", ciphertxt);
-		av_des_crypt(&d, ciphertxt, ciphertxt, ciphertxtlen, vi, 0);
-		printf("2 ciphertxt = %p\n", ciphertxt);
-
-		//char * tes2 = malloc(32);
-		//printf("tes2 = %p\n", tes);
-
-
-		*result_out_len = ciphertxtlen;
-		*result_out = (char*)ciphertxt;
-*/
-
-
-/*		printf("cihper:");
-		int i;
-		for(i=0; i<*result_out_len; ++i)
-		{
-			printf("0x%2x  ", ciphertxt[i]);
-		}
-		printf("\n");
-
-		uint8_t tbuf[1024];
-		uint8_t vi2[8] = {0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef};
-		av_des_crypt(&d, tbuf,  ciphertxt, *result_out_len, vi2, 1);
-		printf("plain:");
-		for(i=0; i<*result_out_len; ++i)
-		{
-			printf("0x%2x  ", tbuf[i]);
-		}
-		printf("\n");
-*/
-
-
-		//*result_out = strdup(result_in);
-		//*result_out_len = strlen(result_in);
 	}
 
 	return 0;
@@ -292,7 +199,7 @@ static char* EncryptResultToString(char* result, int result_len)
 {
 	if(NULL==result || 0==result_len) return result;
 	
-	printf("len=%d\n", result_len);//len=%zu
+	printf("len=%d\n", result_len);
 	char* lisencebase64 = base64Encode(result, result_len);
 	printf("base64:%s, len=%zu\n", lisencebase64, strlen(lisencebase64));
 	free(result);
@@ -434,7 +341,7 @@ static int LoopSocket()
 	struct sigaction act;
 	act.sa_handler=acthandler; 
 	sigemptyset(&act.sa_mask);
-	act.sa_flags=0;  
+	act.sa_flags=0;
 	if(sigaction(SIGCHLD,&act,NULL)==-1)exit(1);  
 	printf("LoopSocket num=%d\n", SIGCHLD);
 
@@ -443,13 +350,14 @@ static int LoopSocket()
 		FD_ZERO(&_fdset);
 		FD_SET(_listenfd, &_fdset);
 
-		tv.tv_sec = 60000;
+		tv.tv_sec = 6000;
 		tv.tv_usec = 0;
 
-		printf("while 60000\n");
+		printf("while 6000\n");
 		
 		//assume _ctrlfd always big than _listenfd, it should be!
-		if(-1==select(1+_listenfd , &_fdset, NULL, NULL, &tv))
+		int res = select(1+_listenfd , &_fdset, NULL, NULL, &tv);
+		if(-1==res)
 		{
 			if(EINTR==errno)
 			{
@@ -461,9 +369,11 @@ static int LoopSocket()
 				break;
 			}
 		}
-		
-
-		if(FD_ISSET(_listenfd, &_fdset))
+		else if(0==res)
+		{
+			printf("time up\n");
+		}
+		else if(FD_ISSET(_listenfd, &_fdset))
 		{
 			struct sockaddr_in addr;
 			socklen_t addr_len = sizeof(struct sockaddr_in);	
@@ -483,6 +393,10 @@ static int LoopSocket()
 				}
 			}
 		}
+		else
+		{
+
+		}
 	
 	}
 
@@ -491,7 +405,12 @@ static int LoopSocket()
 
 static void* RemoteCtrlServer(void *p)
 {
-	InitSocket();
+	if(InitSocket()<0)
+	{
+		printf("listen error\n");
+		exit(0);
+	}
+
 	LoopSocket();
 
 	return 0;
@@ -512,109 +431,8 @@ static int Stop()
 	return 0;
 }
 
-#include<sys/types.h>
-#include<sys/stat.h>
-#include<fcntl.h>
-
 int RemoteCtrlServiceOpen()
 {
-	/*int fd = open("/dev/sde", O_RDWR);
-	if(fd<0)
-	{
-		printf("open error %d\n", fd);
-		return 0;
-	}
-
-	char dd[512]={0};
-	int err=0;
-	for(;;)
-	{
-		err = write(fd, dd,  512);
-		if(err<0)
-		{
-			printf("write error %d\n", errno);
-			return 0;
-		}
-		else
-		{
-			printf("write %d\n", err);
-		}
-	}*/
-
-
-	
-	/*static const uint8_t cbc_key[] = {
-		0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
-		0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01,
-		0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01, 0x23
-	};
-	
-	struct AVDES d;
-	int res = av_des_init(&d, cbc_key, 192, 0);
-	int i;
-	for(i=0; i<3; ++i)
-	{
-		int j; 
-		for(j=0; j<3; ++j)
-		{
-			printf("0x%lld ", d.round_keys[i][j]);
-		}
-		printf("\n");
-	}
-	printf("triple_des=%d\n", d.triple_des);
-	
-	int j;
-	char buf[] = "12345678901234567890123456789012345678901234567890"
-				"12345678901234567890123456789012345678912345678900"
-				"12345678901234567890123456789012345678901234567890"
-				"12345678901234567890123456789012345678901234567890"
-				"12345678901234567890123456789012345678901234567890"
-				"12345678901234567890123456789012345678901234567890"
-				"12345678901234567890123456789012345678901234567890"
-				"12345678901234567890123456789012345678901234567890";
-	printf("plain1:");
-	for(j=0; j<sizeof(buf); ++j)
-	{
-		printf("%d ", buf[j]);
-	}
-	printf("\n");
-	
-	uint8_t vi[8];
-	(*(uint64_t *)(vi) = (0x1234567890abcdefULL));
-
-	printf("\n");
-	av_des_crypt(&d, buf, buf, sizeof(buf)-1, vi, 0);
-
-	printf("cipher:");
-	for(j=0; j<sizeof(buf)-1; ++j)
-	{
-		printf("%d ", buf[j]);
-	}
-	printf("\n");
-
-	printf("vi1:");
-	for(j=0; j<8; ++j)
-	{
-		printf("%x ", vi[j]);
-	}
-	printf("\n");
-	(*(uint64_t *)(vi) = (0x1234567890abcdefULL));
-	av_des_crypt(&d, buf, buf, sizeof(buf)-1, vi, 1);
-
-	printf("plain2:");
-	for(j=0; j<sizeof(buf); ++j)
-	{
-		printf("%d ", buf[j]);
-	}
-	printf("\n");
-	printf("vi2:");
-	for(j=0; j<8; ++j)
-	{
-		printf("%x ", vi[j]);
-	}	
-	printf("\n");
-	//maintest();
-	//maintest2();*/
 	return Start();
 }
 

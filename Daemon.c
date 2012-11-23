@@ -1,8 +1,51 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <error.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <string.h>
+#include <sys/mount.h>
+#include <unistd.h>
+#include <pthread.h>
+#include <signal.h>
+#include <stdio.h> 
+#include <stddef.h> 
+#include <sys/types.h> 
+#include <signal.h> 
+#include <assert.h>
 
+
+int Daemon2()
+{
+	struct sigaction act;
+
+	fprintf(stderr,"守护进程\n");
+	/* 父进程退出 */  
+	if(fork()!=0) exit(1);	
+
+	/* 创建一个新的会议组 */  
+	if(setsid()<0)exit(1);	
+
+	/* 忽略信号SIGHUP */  
+	act.sa_handler=SIG_IGN;  
+	sigemptyset(&act.sa_mask);	
+	act.sa_flags=0;  
+	if(sigaction(SIGHUP,&act,NULL)==-1)exit(1);  
+
+	/* 子进程退出,孙进程没有控制终端了 */  
+	if(fork()!=0) exit(1);	
+
+	if(chdir("/")==-1)exit(1);	
+
+	return 0;
+}
 
 
 int Daemon()
 {
+	struct sigaction act;
+
 	if(fork()!=0) exit(1);	
 	 
 	/* 创建一个新的会议组 */  
@@ -17,7 +60,9 @@ int Daemon()
 	/* 子进程退出,孙进程没有控制终端了 */  
 	if(fork()!=0) exit(1);	
 	
-	if(chdir("/")==-1)exit(1);	
+	if(chdir("/")==-1)exit(1);
+
+	return 0;
 }
 
 int daemonize(int nochdir, int noclose)

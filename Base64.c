@@ -19,7 +19,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 // implementation
 
 #include "Base64.h"
-//#include "strDup.h"
+#include "strDup.h"
 #include <string.h>
 #include <stdlib.h>
 
@@ -88,7 +88,6 @@ char* base64Encode(char const* origSigned, unsigned origLength) {
   Boolean havePadding2 = origLength == numOrig24BitValues*3 + 2;
   unsigned const numResultBytes = 4*(numOrig24BitValues + havePadding);
 
-  printf("numResultBytes = %d\n");
   char* result = malloc(numResultBytes+1); // allow for trailing '\0'
 
   // Map each full group of 3 input bytes into 4 output base-64 characters:

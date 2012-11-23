@@ -12,86 +12,17 @@
 #include <stdio.h> 
 #include <stddef.h> 
 #include <sys/types.h> 
-#include <dirent.h> 
 #include <signal.h> 
 #include <assert.h>
 
-static int fileNums = 0;
-
-int RedirectLog(char *pLogDir, int redirectErr, int redirectOut, int redirectIn)  
-{
-	struct tm *p;
-	int error,in,out;  
-	time_t stime = time(NULL);
-	char lnvrErrorName[255];
-	char lnvrOutName[255];
-	char lnvrInName[255];	
-	
-	p = localtime(&stime);
-	sprintf(lnvrErrorName, "%s/lnvrdaemonerror%04d%02d%02d_%02d%02d%02d", pLogDir, (1900+p->tm_year),
-					(p->tm_mon + 1),p->tm_mday,p->tm_hour, p->tm_min, p->tm_sec);
-
-	sprintf(lnvrOutName, "%s/lnvrdaemonout%04d%02d%02d_%02d%02d%02d", pLogDir,  (1900+p->tm_year),
-					(p->tm_mon + 1),p->tm_mday,p->tm_hour, p->tm_min, p->tm_sec);
-
-	sprintf(lnvrInName, "%s/lnvrdaemonin%04d%02d%02d_%02d%02d%02d", pLogDir, (1900+p->tm_year),
-					(p->tm_mon + 1),p->tm_mday,p->tm_hour, p->tm_min, p->tm_sec);
-
-#if 1
-	if(redirectErr)
-	{
-		/* 标准错误重定向 */  
-		error=open(lnvrErrorName,O_WRONLY|O_CREAT,0600);  
-		if(error < 0)
-		{
-			assert(0);
-		}
-		else
-		{
-			dup2(error,STDERR_FILENO);	
-			close(error);  
-		}
-	}
-
-	if(redirectIn)
-	{
-		/* 标准输入重定向 */  
-		in=open(lnvrInName,O_RDONLY|O_CREAT,0600);	
-		if(in < 0)
-		{
-			assert(0);
-		}
-		else
-		{
-			if(dup2(in,STDIN_FILENO)==-1)perror("in");	
-			close(in);	
-		}
-	}
-	 
-	if(redirectOut)
-	{
-		 /* 标准输出重定向 */  
-		 out=open(lnvrOutName,O_WRONLY|O_CREAT,0600);  
-		 if(out < 0)
-		 {
-			assert(0);
-		 }
-		 else
-		 {
-			 if(dup2(out,STDOUT_FILENO)==-1)perror("out");	
-			 close(out);  
-		 }
-	}
-
-#endif
-
-	fprintf(stderr, "File NO %d, 版本号< 0. 1. 1. 10 >, 2012-07-30 17:29\n", fileNums++);
-
-       return 0;
-}
 
 
 #define MAXFILE 65535
+
+extern int Daemon2();
+extern int RemoteCtrlServiceOpen();
+extern int RedirectLog(char *pLogDir, int redirectErr, int redirectOut, int redirectIn) ;
+
 
 //extern "C"
 //{
@@ -101,7 +32,7 @@ int RedirectLog(char *pLogDir, int redirectErr, int redirectOut, int redirectIn)
 
 int main(int argc,char **argv)  
 {  
-	struct sigaction act;  
+	  
 	time_t now;  
 	int memory;  
 	int count = 0;
@@ -123,24 +54,7 @@ int main(int argc,char **argv)
 	if(bIsDaemon)
 	{
 		printf("守护进程\n");
-		fprintf(stderr,"守护进程\n");
-		/* 父进程退出 */  
-		if(fork()!=0) exit(1);	
-		 
-		/* 创建一个新的会议组 */  
-		if(setsid()<0)exit(1);	
-		 
-		/* 忽略信号SIGHUP */  
-		act.sa_handler=SIG_IGN;  
-		sigemptyset(&act.sa_mask);	
-		act.sa_flags=0;  
-		if(sigaction(SIGHUP,&act,NULL)==-1)exit(1);  
-		 
-		/* 子进程退出,孙进程没有控制终端了 */  
-		if(fork()!=0) exit(1);	
-		 
-		if(chdir("/")==-1)exit(1);	
-
+		Daemon2();
 	}
 	else
 	{
@@ -148,15 +62,12 @@ int main(int argc,char **argv)
 		fprintf(stderr,"不是守护进程, only comm program\n");
 	}
 
-	if(chdir(daemonLogDir)==-1)
-	{
-		mkdir(daemonLogDir,0777);
-	}
-	
 	RedirectLog(daemonLogDir, redirectErr, redirectOut, redirectIn);
 
 	time(&now);  
 	fprintf(stderr,"开机时间: Time %s, Restart lnvrserver times %d\n",ctime(&now), count);  
+
+	RemoteCtrlServiceOpen();
 	
 	while(1)  
 	{  

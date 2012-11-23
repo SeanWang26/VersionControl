@@ -30,16 +30,14 @@ const char* GetLicence(char* cmdarglist[])
 	time(&timep);
 	p=localtime(&timep);
 	
-	/*sprintf(reschar, "systime=%02d.%02d.%02d %02d-%02d-%02d"
-		, (1900+p->tm_year), (1+p->tm_mon), p->tm_mday, 
+	sprintf(reschar, "%s:systime=%02d.%02d.%02d %02d-%02d-%02d", 
+		reschar, (1900+p->tm_year), (1+p->tm_mon), p->tm_mday, 
 		p->tm_hour, p->tm_min, p->tm_sec);
-	*/
-	sprintf(reschar, "systime=2012.11.20 17-09-38");
-
-
+	
+	//sprintf(reschar, "systime=2012.11.20 17-09-38");
 
 	printf("GetLicence:%s\n", reschar);
-	printf("GetLicence %d:", strlen(reschar));
+	printf("GetLicence %zu:", strlen(reschar));
 	int i;
 	for(i=0; i<strlen(reschar); ++i)
 	{
