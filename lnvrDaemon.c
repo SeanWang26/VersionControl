@@ -20,15 +20,8 @@
 #define MAXFILE 65535
 
 extern int Daemon2();
-extern int RemoteCtrlServiceOpen();
+extern int RemoteCtrlServiceOpen(int);
 extern int RedirectLog(char *pLogDir, int redirectErr, int redirectOut, int redirectIn) ;
-
-
-//extern "C"
-//{
-
-
-//g++
 
 int main(int argc,char **argv)  
 {  
@@ -53,7 +46,7 @@ int main(int argc,char **argv)
 
 	if(bIsDaemon)
 	{
-		printf("守护进程\n");
+		//printf("守护进程\n");
 		Daemon2();
 	}
 	else
@@ -67,7 +60,7 @@ int main(int argc,char **argv)
 	time(&now);  
 	fprintf(stderr,"开机时间: Time %s, Restart lnvrserver times %d\n",ctime(&now), count);  
 
-	RemoteCtrlServiceOpen();
+	RemoteCtrlServiceOpen(0);
 	
 	while(1)  
 	{  
@@ -136,6 +129,4 @@ int main(int argc,char **argv)
 	}  
 	exit(0);  
 } 
-
-//}
  

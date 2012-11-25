@@ -1,8 +1,8 @@
 #ifndef REMOTECTRLSERVICE_H
 #define REMOTECTRLSERVICE_H
 
-int RemoteCtrlServiceOpen();
-int RemoteCtrlServiceClose();
+int RemoteCtrlServiceOpen(int);
+int RemoteCtrlServiceClose(int);
 
 
 #endif

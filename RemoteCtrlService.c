@@ -27,8 +27,6 @@ extern const char* CheckKey(char *key);
 extern const char* GetLicence(char* cmdstr);
 extern const char* DoUpdate(char *cmdstr);
 
-
-static pthread_t pid = 0;
 static int _listenfd = -1;
 static int _ctrlfd = -1;
 const static unsigned int _port = 4011; 
@@ -320,7 +318,7 @@ static int CreateClientProcess(int fd)
 	{
 		printf("CreateClientProcess fork main %d\n", pid);
 		_ctrlfd = fd;
-		sleep(2);
+		//sleep(2);
 	}
 	else if(pid==-1)
 	{
@@ -416,29 +414,29 @@ static void* RemoteCtrlServer(void *p)
 	return 0;
 }
 
-static int Start() 
+static int Start(int wait) 
 {
+	static pthread_t pid = 0;
+
 	pthread_create(&pid, NULL, RemoteCtrlServer, NULL);
 	
-	pthread_join(pid, NULL);
+	if(wait)pthread_join(pid, NULL);
 
-	return 0;	
+	return pid;	
 }
-static int Stop()
+static int Stop(int pid)
 {
-	pthread_cancel(pid);
-
-	return 0;
+	return pthread_cancel(pid);
 }
 
-int RemoteCtrlServiceOpen()
+int RemoteCtrlServiceOpen(int wait)
 {
-	return Start();
+	return Start(wait);
 }
 
-int RemoteCtrlServiceClose()
+int RemoteCtrlServiceClose(int pid)
 {
-	return Stop();
+	return Stop(pid);
 }
 
 

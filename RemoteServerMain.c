@@ -9,7 +9,7 @@ int main(int argc,char **argv)
 
 
 
-	RemoteCtrlServiceOpen();
+	RemoteCtrlServiceOpen(1);
 	//RemoteCtrlServiceClose();
 	
 
