@@ -17,15 +17,12 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include "Base64.h"
-#include "des.h"
 #include "openssl/des.h"
-
-
-
 
 extern const char* CheckKey(char *key);
 extern const char* GetLicence(char* cmdstr);
 extern const char* DoUpdate(char *cmdstr);
+extern const char* KillProcess(char* cmdstr);
 
 
 static pthread_t pid = 0;
@@ -130,6 +127,10 @@ static const char* HandleCmd(int fd, char *cmdstr)
 	else if(0==strcmp(cmdarg_list[0], "update"))
 	{
 		cmdrsp = DoUpdate(cmdstr);
+	}
+	else if(0==strcmp(cmdarg_list[0], "KillProcess"))
+	{
+		cmdrsp = KillProcess(cmdstr);
 	}
 	else
 	{
