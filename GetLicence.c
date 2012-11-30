@@ -11,7 +11,7 @@ extern int GetDiskSerialNumber(char* buf, size_t max);
     0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01, 0x23
 };
 */
-const char* GetLicence(char* cmdarglist[])
+const char* GetLicence(char** cmdarglist)
 {
 	char *reschar = malloc(1024);//not good
 	//1.add cmd head

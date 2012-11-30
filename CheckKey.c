@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-const char* CheckKey(char* cmdarglist[])
+const char* CheckKey(char** cmdarglist)
 {
 	/*
 	result:0 success

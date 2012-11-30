@@ -19,10 +19,10 @@
 #include "Base64.h"
 #include "openssl/des.h"
 
-extern const char* CheckKey(char *key);
-extern const char* GetLicence(char* cmdstr);
-extern const char* DoUpdate(char *cmdstr);
-extern const char* KillProcess(char* cmdstr);
+extern const char* CheckKey(char **key);
+extern const char* GetLicence(char** cmdstr);
+extern const char* DoUpdate(char **cmdstr);
+extern const char* KillProcess(char** cmdstr);
 
 
 static pthread_t pid = 0;
@@ -118,19 +118,23 @@ static const char* HandleCmd(int fd, char *cmdstr)
 	}
 	else if(0==strcmp(cmdarg_list[0], "checkkey"))
 	{
-		cmdrsp = CheckKey(cmdstr);
+		printf("CheckKey\n");
+		cmdrsp = CheckKey(cmdarg_list);
 	}
 	else if(0==strcmp(cmdarg_list[0], "getlisence"))
 	{
-		cmdrsp = GetLicence(cmdstr);
+		printf("GetLicence\n");
+		cmdrsp = GetLicence(cmdarg_list);
 	}
 	else if(0==strcmp(cmdarg_list[0], "update"))
 	{
-		cmdrsp = DoUpdate(cmdstr);
+		printf("DoUpdate\n");
+		cmdrsp = DoUpdate(cmdarg_list);
 	}
 	else if(0==strcmp(cmdarg_list[0], "KillProcess"))
 	{
-		cmdrsp = KillProcess(cmdstr);
+		printf("KillProcess\n");
+		cmdrsp = KillProcess(cmdarg_list);
 	}
 	else
 	{

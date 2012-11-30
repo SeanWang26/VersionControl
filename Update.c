@@ -13,7 +13,7 @@
 
 #include "our_md5.h"
 
-const char* DoUpdate(char* cmdarglist[])
+const char* DoUpdate(char** cmdarglist)
 {
 	char msg[64] = "successful";
 	char* rspcmd = NULL;
@@ -24,32 +24,44 @@ const char* DoUpdate(char* cmdarglist[])
 
 	int i=0;
 	char *curcmdentry=0;
+	printf("1212121111111\n");
+	
+	//update:name=update.tar.gz:size=178:md5=ae7bc45b1dae2d2a1a4287cef1949db8:key=111111111111111111:ver=12.3:ip=172.16.140.53:port=12345
 	while(NULL != (curcmdentry = cmdarglist[i++])){
 		if(strncmp("update", curcmdentry, 5)==0){
+			printf("a\n");
 			CmdMain = curcmdentry;
 		}
 		else if(strncmp("name=", curcmdentry, 5)==0){
+			printf("b\n");
 			ArgName = curcmdentry+5;
 		}
 		else if(strncmp("size=", curcmdentry, 5)==0){
+			printf("c\n");
 			ArgSize = curcmdentry+5;
 		}
 		else if(strncmp("md5=", curcmdentry, 4)==0){
+			printf("d\n");
 			ArgMd5 = curcmdentry+4;
 		}		
 		else if(strncmp("key=", curcmdentry, 4)==0){
+			printf("e\n");
 			ArgKey = curcmdentry+4;
 		}	
 		else if(strncmp("ver=", curcmdentry, 4)==0){
+			printf("f\n");
 			ArgVer = curcmdentry+4;
 		}
 		else if(strncmp("ip=", curcmdentry, 3)==0){
+			printf("g\n");
 			ArgIp = curcmdentry+3;
 		}
 		else if(strncmp("port=", curcmdentry, 5)==0){
 			ArgPort = curcmdentry+5;
 		}
 	}
+	
+	printf("121212111111---------1\n");
 
 	printf("%s:name=%s:size=%s:md5=%s:key=%s:ver=%s:ip=%s:port=%s\n"
 		, CmdMain, ArgName, ArgSize, ArgMd5, ArgKey, ArgVer, ArgIp, ArgPort);
@@ -131,14 +143,14 @@ const char* DoUpdate(char* cmdarglist[])
 	//Backup old version??????
 	//system();
 	
-	system("tar zxvf Release.tar.gz");
-	system("cp Release/* ./ -r -f");
+	system("tar xvf update.tar.gz");
+	system("cp update/* ./ -r -f");
 	system("bash update.sh");
 
 	printf("file download _exit!\n");
 
 end:
-	
+	printf("111");
 	if(connfd>0)
 		close(connfd);
 
@@ -147,7 +159,7 @@ end:
 	
 	rspcmd = (char*)malloc(256);
 	sprintf(rspcmd, "update:result=%d:message=%s\r\n", res, msg);
-	
+	printf("%s\n", rspcmd);
 	return rspcmd;
 	
 }
