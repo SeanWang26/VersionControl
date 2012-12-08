@@ -1,19 +1,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include<time.h>
-#include "des.h"
+#include <time.h>
 #include "Base64.h"
 
 extern int GetDiskSerialNumber(char* buf, size_t max);
-static const uint8_t cbc_key[] = {
+/*static const uint8_t cbc_key[] = {
     0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
     0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01,
     0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01, 0x23
 };
-
-const char* GetLicence(char* cmdarglist[])
-{	
+*/
+const char* GetLicence(char** cmdarglist)
+{
 	char *reschar = malloc(1024);//not good
 	//1.add cmd head
 	sprintf(reschar, "%s", "getlisence");
