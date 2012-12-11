@@ -48,6 +48,7 @@ int main(int argc,char **argv)
 	//
 	int bRedirect = 1;
 
+	int bOpenRemoteCtrl = 1;
 	//
 	int RestartInterval = 10; 
 	char *c;
@@ -62,11 +63,12 @@ int main(int argc,char **argv)
 
 	int option_index=-1;
 	int opt=-1;
-	char const *shortopt = "d:r:i:h";
+	char const *shortopt = "d:r:i:o:h";
 	struct option long_options[] = {
 		{"daemon", required_argument, 0, 'b'},
 		{"redirect", required_argument, 0, 'r'},
 		{"interval", required_argument, 0, 'i'},
+		{"remote", required_argument, 0, 'o'},
 		{"help", 0, 0, 'h'}
 	};
 	
@@ -125,7 +127,8 @@ int main(int argc,char **argv)
 	time(&now);
 	fprintf(stderr,"开机时间: Time %s, Restart lnvrserver times %d\n",ctime(&now), count);  
 
-	RemoteCtrlServiceOpen(0);
+	if(bOpenRemoteCtrl)
+		RemoteCtrlServiceOpen(0);
 	
 	while(1)  
 	{  
