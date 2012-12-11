@@ -14,8 +14,7 @@
 #include <sys/types.h> 
 #include <signal.h> 
 #include <assert.h>
-
-
+#include "getopt.h"
 
 #define MAXFILE 65535
 
@@ -23,10 +22,19 @@ extern int Daemon2();
 extern int RemoteCtrlServiceOpen(int);
 extern int RedirectLog(char *pLogDir, int redirectErr, int redirectOut, int redirectIn) ;
 
+char Help[] =
+"Usage: "
+"lnvrDaemon.out -d num\n" 
+"			if num...\n"         
+"lnvrDaemon.out -r num\n" 
+"			if num...\n"         
+"lnvrDaemon.out -i num\n" 
+"			if num...\n"        
+"lnvrDaemon.out -h\n" 
+"			show help\n";
+
 int main(int argc,char **argv)  
 {  
-	  
-	time_t now;  
 	int memory;  
 	int count = 0;
 	//int theCount = 0;
@@ -34,16 +42,71 @@ int main(int argc,char **argv)
 
 	//必要时改成从配置中获取
 
+	//
 	int bIsDaemon = 1;
+
+	//
+	int bRedirect = 1;
+
+	//
+	int RestartInterval = 10; 
+	char *c;
+
 	char programeName[] = "lnvrserver";
 	char exePrograme[] = "./lnvrserver -g";
 	char proDir[] = "/home/Release";
 	char daemonLogDir[] = "/home/DaemonLog";
 	int redirectErr = 1;
-	int redirectOut = 1; 
+	int redirectOut = 1;
 	int redirectIn =  1;
 
+	int option_index=-1;
+	int opt=-1;
+	char const *shortopt = "d:r:i:h";
+	struct option long_options[] = {
+		{"daemon", required_argument, 0, 'b'},
+		{"redirect", required_argument, 0, 'r'},
+		{"interval", required_argument, 0, 'i'},
+		{"help", 0, 0, 'h'}
+	};
+	
+	while ((opt=getopt_long(argc, argv,
+					shortopt, long_options,
+					&option_index)) != -1) 
+	{
+		switch(opt)
+		{
+			case 'd':
+				printf("Daemon\n");
+				if(*optarg=='0')
+					bIsDaemon = 0;
+			break;
+			case 'r':
+				printf("redirect\n");
+				if(*optarg=='0')
+					bRedirect = 0;
+			break;
+			case 'i':
+				printf("interval %s\n", optarg);
+				RestartInterval = strtol(optarg, &c, 10);
+				if(RestartInterval<1 || *c)
+				{
+					printf("-i the value is invalid\n");
+					exit(0);
+				}
+				
+			break;
+			case 'h':
+				printf("%s", Help);
+				break;
+			case ':':
+			case '?':
+				printf("use --help %d\n", opt);
+				exit(0);
+		}
+	}
 
+#if 0
 	if(bIsDaemon)
 	{
 		//printf("守护进程\n");
@@ -55,9 +118,11 @@ int main(int argc,char **argv)
 		fprintf(stderr,"不是守护进程, only comm program\n");
 	}
 
+	
 	RedirectLog(daemonLogDir, redirectErr, redirectOut, redirectIn);
 
-	time(&now);  
+	time_t now; 
+	time(&now);
 	fprintf(stderr,"开机时间: Time %s, Restart lnvrserver times %d\n",ctime(&now), count);  
 
 	RemoteCtrlServiceOpen(0);
@@ -86,7 +151,7 @@ int main(int argc,char **argv)
 				count++;
 				t1 = time(NULL);
 				system(exePrograme);
-			    	time(&now);  
+				time(&now);
 				memory=sysconf(_SC_AVPHYS_PAGES);  
 				fprintf(stderr,"Time %s, memory[%d], Restart %s times %d\n",
 									ctime(&now), memory, programeName, count);  
@@ -127,6 +192,8 @@ int main(int argc,char **argv)
 			}
 		}
 	}  
+#endif
+	
 	exit(0);  
 } 
  
