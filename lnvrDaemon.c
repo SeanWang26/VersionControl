@@ -23,15 +23,15 @@ extern int RemoteCtrlServiceOpen(int);
 extern int RedirectLog(char *pLogDir, int redirectErr, int redirectOut, int redirectIn) ;
 
 char Help[] =
-"Usage: "
+"Usage: \n"
 "lnvrDaemon.out -d num\n" 
-"			if num...\n"         
+"	if num...\n"         
 "lnvrDaemon.out -r num\n" 
-"			if num...\n"         
+"	if num...\n"         
 "lnvrDaemon.out -i num\n" 
-"			if num...\n"        
+"	if num...\n"        
 "lnvrDaemon.out -h\n" 
-"			show help\n";
+"	show help\n";
 
 int main(int argc,char **argv)  
 {  
@@ -108,7 +108,7 @@ int main(int argc,char **argv)
 		}
 	}
 
-#if 0
+#if 1
 	if(bIsDaemon)
 	{
 		//printf("守护进程\n");
@@ -120,10 +120,16 @@ int main(int argc,char **argv)
 		fprintf(stderr,"不是守护进程, only comm program\n");
 	}
 
+	if(bRedirect)
+	{
+		RedirectLog(daemonLogDir, redirectErr, redirectOut, redirectIn);
+	}	
+	else 
+	{
+		printf("no Redirect");
+	}
 	
-	RedirectLog(daemonLogDir, redirectErr, redirectOut, redirectIn);
-
-	time_t now; 
+	time_t now;
 	time(&now);
 	fprintf(stderr,"开机时间: Time %s, Restart lnvrserver times %d\n",ctime(&now), count);  
 

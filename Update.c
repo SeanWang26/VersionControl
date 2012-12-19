@@ -142,9 +142,12 @@ const char* DoUpdate(char** cmdarglist)
 	
 	//Backup old version??????
 	//system();
+
 	
+
 	system("tar xvf update.tar.gz");
 	system("cp update/* ./ -r -f");
+	system("dos2unix update.sh");
 	system("bash update.sh");
 
 	printf("file download _exit!\n");

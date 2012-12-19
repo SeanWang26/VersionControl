@@ -26,6 +26,8 @@ extern const char* KillProcess(char** cmdstr);
 
 static int _listenfd = -1;
 static int _ctrlfd = -1;
+static int _pid = -1;
+
 const static unsigned int _port = 4011; 
 void * _taskHead = NULL;
 
@@ -216,7 +218,13 @@ static int SendResult(int fd, char* result)
 
 	if(NULL==result) return 0;
 
-	int err = SendCmd(fd, result); 
+	char *result_out=NULL;
+	int result_out_len=0;
+	EncryptResult(result, &result_out, &result_out_len);
+	
+	char *result2 = EncryptResultToString(result_out, result_out_len);
+
+	int err = SendCmd(fd, result2); 
 
 	free(result);
 
@@ -262,9 +270,13 @@ void acthandler(int num)
 	{
 		int exitcode=0;
 		pid_t pid = wait(&exitcode);
-		printf("precess %d quit with %d, _ctrlfd=%d\n", pid, exitcode, _ctrlfd);
-		close(_ctrlfd);
-		_ctrlfd = -1;
+		if(_pid==pid)
+		{
+			printf("precess %d quit with %d, _ctrlfd=%d\n", pid, exitcode, _ctrlfd);
+			close(_ctrlfd);
+			_ctrlfd = -1;
+			_pid = -1;
+		}
 	}	
 }
 
@@ -297,13 +309,13 @@ static int CreateClientProcess(int fd)
 			
 			const char* result = HandleCmd(fd, _recvBuf);
 
-			char *result_out=NULL;
-			int result_out_len=0;
-			EncryptResult(result, &result_out, &result_out_len);
+			//char *result_out=NULL;
+			//int result_out_len=0;
+			//EncryptResult(result, &result_out, &result_out_len);
 
-			char *result2 = EncryptResultToString(result_out, result_out_len);
+			//char *result2 = EncryptResultToString(result_out, result_out_len);
 
-			err = SendResult(fd, result2);
+			err = SendResult(fd, result);
 			if(err <= 0)
 			{
 				printf("SendResult error\n");
@@ -353,7 +365,7 @@ static int LoopSocket()
 		FD_ZERO(&_fdset);
 		FD_SET(_listenfd, &_fdset);
 
-		tv.tv_sec = 6000;
+		tv.tv_sec = 60000;
 		tv.tv_usec = 0;
 
 		printf("while 6000\n");
@@ -386,12 +398,13 @@ static int LoopSocket()
 			{
 				if(_ctrlfd == -1)
 				{
-					CreateClientProcess(tfd);					
+					_pid = CreateClientProcess(tfd);					
 				}
 				else
 				{
-					printf("server be occupied by %d\n", _ctrlfd);
-					SendCmd(tfd, "error:server be occupied\n");
+					SendResult(tfd, strdup("error:server be occupied\n"));			
+					//printf("server be occupied by %d\n", _ctrlfd);
+					//SendCmd(tfd, strdup("error:server be occupied\n"));
 					shutdown(tfd, 0);
 				}
 			}
@@ -421,17 +434,17 @@ static void* RemoteCtrlServer(void *p)
 
 static int Start(int wait) 
 {
-	static pthread_t pid = 0;
+	static pthread_t tid = 0;
 
-	pthread_create(&pid, NULL, RemoteCtrlServer, NULL);
+	pthread_create(&tid, NULL, RemoteCtrlServer, NULL);
 	
-	if(wait)pthread_join(pid, NULL);
+	if(wait)pthread_join(tid, NULL);
 
-	return pid;	
+	return tid;	
 }
-static int Stop(int pid)
+static int Stop(int tid)
 {
-	return pthread_cancel(pid);
+	return pthread_cancel(tid);
 }
 
 int RemoteCtrlServiceOpen(int wait)
@@ -439,9 +452,9 @@ int RemoteCtrlServiceOpen(int wait)
 	return Start(wait);
 }
 
-int RemoteCtrlServiceClose(int pid)
+int RemoteCtrlServiceClose(int tid)
 {
-	return Stop(pid);
+	return Stop(tid);
 }
 
 
