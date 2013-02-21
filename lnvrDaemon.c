@@ -16,7 +16,10 @@
 #include <assert.h>
 #include "getopt.h"
 
+#include <sys/types.h>
+
 #define MAXFILE 65535
+
 
 extern int Daemon2();
 extern int RemoteCtrlServiceOpen(int);
@@ -33,8 +36,10 @@ char Help[] =
 "lnvrDaemon.out -h\n" 
 "	show help\n";
 
+
 int main(int argc,char **argv)  
 {  
+
 	int memory;  
 	int count = 0;
 	//int theCount = 0;
@@ -56,10 +61,6 @@ int main(int argc,char **argv)
 	char programeName[] = "lnvrserver";
 	char exePrograme[] = "./lnvrserver -g";
 	char proDir[] = "/home/Release";
-	char daemonLogDir[] = "/home/DaemonLog";
-	int redirectErr = 1;
-	int redirectOut = 1;
-	int redirectIn =  1;
 
 	int option_index=-1;
 	int opt=-1;
@@ -71,7 +72,7 @@ int main(int argc,char **argv)
 		{"remote", required_argument, 0, 'o'},
 		{"help", 0, 0, 'h'}
 	};
-	
+
 	while ((opt=getopt_long(argc, argv,
 					shortopt, long_options,
 					&option_index)) != -1) 
@@ -120,23 +121,25 @@ int main(int argc,char **argv)
 		fprintf(stderr,"不是守护进程, only comm program\n");
 	}
 
-	if(bRedirect)
-	{
-		RedirectLog(daemonLogDir, redirectErr, redirectOut, redirectIn);
-	}	
-	else 
-	{
-		printf("no Redirect");
-	}
+	//should not do rederect here
+	//if(bRedirect)
+	//{
+	//	RedirectLog(daemonLogDir, redirectErr, redirectOut, redirectIn);
+	//}	
+	//else 
+	//{
+	//	printf("no Redirect");
+	//}
 	
 	time_t now;
 	time(&now);
-	fprintf(stderr,"开机时间: Time %s, Restart lnvrserver times %d\n",ctime(&now), count);  
-
-	if(bOpenRemoteCtrl)
-		RemoteCtrlServiceOpen(0);
+	fprintf(stderr,"开机时间: Time %s, Restart lnvrserver times %d\n", ctime(&now), count); 
 	
-	while(1)  
+	if(bOpenRemoteCtrl)
+		RemoteCtrlServiceOpen(1);
+
+	//app monitor
+	while(0) 
 	{  
 		if(chdir(proDir)==-1)
 		{

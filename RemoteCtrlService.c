@@ -218,11 +218,20 @@ static int SendResult(int fd, char* result)
 
 	if(NULL==result) return 0;
 
-	char *result_out=NULL;
-	int result_out_len=0;
-	EncryptResult(result, &result_out, &result_out_len);
-	
-	char *result2 = EncryptResultToString(result_out, result_out_len);
+	int Encrypt=0;//no Encrypt now!!
+	char *result2;
+	if(Encrypt)
+	{
+		//char *result_out=NULL;
+		//int result_out_len=0;
+		//EncryptResult(result, &result_out, &result_out_len);
+		//result2 = EncryptResultToString(result_out, result_out_len);
+	}
+	else
+	{
+		result2 = result;
+	}
+
 
 	int err = SendCmd(fd, result2); 
 
@@ -308,12 +317,6 @@ static int CreateClientProcess(int fd)
 			}
 			
 			const char* result = HandleCmd(fd, _recvBuf);
-
-			//char *result_out=NULL;
-			//int result_out_len=0;
-			//EncryptResult(result, &result_out, &result_out_len);
-
-			//char *result2 = EncryptResultToString(result_out, result_out_len);
 
 			err = SendResult(fd, result);
 			if(err <= 0)

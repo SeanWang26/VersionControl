@@ -14,7 +14,53 @@
 #include <sys/types.h> 
 #include <signal.h> 
 #include <assert.h>
+#include <errno.h>
 
+#define LOCKFILE "/var/run/lnvrDaemon.pid"
+#define LOCKMODE (S_IRUSR|S_IWUSR|S_IRGRP|S_IRGRP) //can read|can write|can group read|can other read
+
+int lockfile(int fd)
+{
+	struct flock fl;
+	fl.l_type = F_WRLCK;
+	fl.l_start = 0;
+	fl.l_whence = SEEK_SET;
+	fl.l_len = 0;
+	return (fcntl(fd, F_SETLK, &fl));
+}
+
+int already_runing(void)
+{
+	int fd;
+	char buf[16];
+
+	fd = open(LOCKFILE, O_RDWR|O_CREAT, LOCKMODE);
+	if(fd<0)
+	{
+		printf("can't open %s, %s\n", LOCKFILE, strerror(errno));
+		exit(1);
+	}
+	
+	if(lockfile(fd)<0)
+	{
+		if(errno==EACCES || errno==EAGAIN)
+		{
+			printf("2222222222lockfile %s, %s\n", LOCKFILE, strerror(errno));
+			close(fd);
+			return 1;
+		}
+		
+		printf("lockfile %s, %s\n", LOCKFILE, strerror(errno));
+		exit(1);
+	}
+
+	printf("1111111111111111lockfile %s, %s\n", LOCKFILE, strerror(errno));
+	ftruncate(fd, 0);
+	sprintf(buf, "%ld", (long)getpid());
+	write(fd, buf, strlen(buf)+1);
+
+	return 0;
+}
 
 int Daemon2()
 {
@@ -38,6 +84,12 @@ int Daemon2()
 
 	if(chdir("/")==-1)exit(1);	
 
+	if(already_runing())
+	{
+		printf("already run\n");
+		exit(1);
+	}
+	
 	return 0;
 }
 
