@@ -15,6 +15,7 @@
 #include <signal.h> 
 #include <assert.h>
 #include "getopt.h"
+#include <dlfcn.h>
 
 #include <sys/types.h>
 
@@ -47,10 +48,9 @@ int main(int argc,char **argv)
 
 	//必要时改成从配置中获取
 
-	//
-	int bIsDaemon = 1;
+	//默认不以守护运行
+	int bIsDaemon = 0;
 
-	//
 	int bRedirect = 1;
 
 	int bOpenRemoteCtrl = 1;
@@ -72,6 +72,10 @@ int main(int argc,char **argv)
 		{"remote", required_argument, 0, 'o'},
 		{"help", 0, 0, 'h'}
 	};
+
+	time_t now;
+	time(&now);
+	printf("launch time %s\n", ctime(&now)); 
 
 	while ((opt=getopt_long(argc, argv,
 					shortopt, long_options,
@@ -112,13 +116,12 @@ int main(int argc,char **argv)
 #if 1
 	if(bIsDaemon)
 	{
-		//printf("守护进程\n");
+		printf("running in daemon mode\n");
 		Daemon2();
 	}
 	else
 	{
-		printf("不是守护进程, only comm program\n");
-		fprintf(stderr,"不是守护进程, only comm program\n");
+		printf("not running in daemon mode\n");
 	}
 
 	//should not do rederect here
@@ -130,16 +133,29 @@ int main(int argc,char **argv)
 	//{
 	//	printf("no Redirect");
 	//}
-	
-	time_t now;
-	time(&now);
-	fprintf(stderr,"开机时间: Time %s, Restart lnvrserver times %d\n", ctime(&now), count); 
-	
+		
 	if(bOpenRemoteCtrl)
-		RemoteCtrlServiceOpen(1);
+	{	
+		const char *dlpath = "./libremoteservice.so";
+		void * dl = dlopen(dlpath, RTLD_NOW | RTLD_GLOBAL);
+		int (*remoteservice)(int);
+		remoteservice = NULL;
+		if (dl == NULL) {
+			fprintf(stderr, "try open %s failed : %s\n",dlpath, dlerror());
+		}
+		else
+		{
+			printf("try open %s success\n", dlpath);
+		}
+
+		remoteservice = dlsym(dl, "RemoteCtrlServiceOpen");
+		if(remoteservice)
+			remoteservice(1);
+	}
+		//RemoteCtrlServiceOpen(1);
 
 	//app monitor
-	while(0) 
+	/*while(0) 
 	{  
 		if(chdir(proDir)==-1)
 		{
@@ -203,7 +219,7 @@ int main(int argc,char **argv)
 				}
 			}
 		}
-	}  
+	} */ 
 #endif
 	
 	exit(0);  

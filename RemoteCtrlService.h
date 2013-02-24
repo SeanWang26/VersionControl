@@ -4,5 +4,4 @@
 int RemoteCtrlServiceOpen(int);
 int RemoteCtrlServiceClose(int);
 
-
 #endif

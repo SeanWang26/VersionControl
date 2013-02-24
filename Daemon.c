@@ -66,7 +66,6 @@ int Daemon2()
 {
 	struct sigaction act;
 
-	fprintf(stderr,"守护进程\n");
 	/* 父进程退出 */  
 	if(fork()!=0) exit(1);	
 

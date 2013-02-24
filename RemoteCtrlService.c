@@ -145,7 +145,7 @@ static const char* HandleCmd(int fd, char *cmdstr)
 	return cmdrsp;
 }
 
-static int EncryptResult(const char* result_in, char **result_out, int *result_out_len)
+/*static int EncryptResult(const char* result_in, char **result_out, int *result_out_len)
 {
 	if(NULL==result_in) 
 	{
@@ -211,7 +211,7 @@ static char* EncryptResultToString(char* result, int result_len)
 
 	return lisencebase64;
 }
-
+*/
 static int SendResult(int fd, char* result)
 {
 	assert(fd>0);
