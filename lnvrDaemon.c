@@ -41,10 +41,10 @@ char Help[] =
 int main(int argc,char **argv)  
 {  
 
-	int memory;  
-	int count = 0;
+	//int memory;  
+	//int count = 0;
 	//int theCount = 0;
-	time_t t1,t2;
+	//time_t t1,t2;
 
 	//必要时改成从配置中获取
 
@@ -58,9 +58,9 @@ int main(int argc,char **argv)
 	int RestartInterval = 10; 
 	char *c;
 
-	char programeName[] = "lnvrserver";
-	char exePrograme[] = "./lnvrserver -g";
-	char proDir[] = "/home/Release";
+	//char programeName[] = "lnvrserver";
+	//char exePrograme[] = "./lnvrserver -g";
+	//char proDir[] = "/home/Release";
 
 	int option_index=-1;
 	int opt=-1;

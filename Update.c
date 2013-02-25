@@ -13,7 +13,7 @@
 
 #include "our_md5.h"
 
-const char* DoUpdate(char** cmdarglist)
+void* DoUpdate(char** cmdarglist)
 {
 	char msg[64] = "successful";
 	char* rspcmd = NULL;

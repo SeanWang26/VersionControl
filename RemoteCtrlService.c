@@ -16,13 +16,16 @@
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include "Base64.h"
-#include "openssl/des.h"
+//#include "Base64.h"
+//#include "openssl/des.h"
+#include <dlfcn.h>
 
-extern const char* CheckKey(char **key);
-extern const char* GetLicence(char** cmdstr);
-extern const char* DoUpdate(char **cmdstr);
-extern const char* KillProcess(char** cmdstr);
+#define TASK_LIB "./libremotetask.so"
+
+extern void* CheckKey(char **key);
+extern void* GetLicence(char** cmdstr);
+extern void* DoUpdate(char **cmdstr);
+extern void* KillProcess(char** cmdstr);
 
 static int _listenfd = -1;
 static int _ctrlfd = -1;
@@ -94,7 +97,7 @@ static int ReadCmd(int fd, char* buffer, int len)
 	return err;
 }
 
-static const char* HandleCmd(int fd, char *cmdstr)
+static void* HandleCmd(int fd, char *cmdstr)
 {
 	printf("PaserCmd:%d \n%s\n", (int)strlen(cmdstr), cmdstr);
 	
@@ -110,8 +113,33 @@ static const char* HandleCmd(int fd, char *cmdstr)
 	int i=0;
 	while(NULL != (cmdarg_list[i++] = strsep(&curcmdentry, ":\r\n\t")));
 
-	const char *cmdrsp = NULL;
-	if(cmdarg_list[0]==NULL)
+	const char *dlpath = TASK_LIB;
+	void * dl = dlopen(dlpath, RTLD_NOW | RTLD_GLOBAL);
+	void* (*remoteservice)(char** arg);
+	remoteservice = NULL;
+	if (dl == NULL) {
+		fprintf(stderr, "try open %s failed : %s\n",dlpath, dlerror());
+	}
+	else
+	{
+		printf("try open %s success\n", dlpath);
+	}
+	
+	void *cmdrsp = NULL;
+	if(dl)
+	{
+		remoteservice = dlsym(dl, cmdarg_list[0]);
+		if(remoteservice)
+			cmdrsp = remoteservice(cmdarg_list);
+		else
+			cmdrsp = strdup("error:can't find task\n");
+	}
+	else
+	{
+		cmdrsp = strdup("error:can load libremoteservice.so\n");
+	}
+	
+	/*if(cmdarg_list[0]==NULL)
 	{
 		printf("error:no cmd\n");
 		cmdrsp = strdup("error:no cmd\n");	
@@ -140,7 +168,7 @@ static const char* HandleCmd(int fd, char *cmdstr)
 	{
 		printf("error:unkown cmd\n");
 		cmdrsp = strdup("error:unkown cmd\n");
-	}
+	}*/
 
 	return cmdrsp;
 }
@@ -212,13 +240,13 @@ static char* EncryptResultToString(char* result, int result_len)
 	return lisencebase64;
 }
 */
-static int SendResult(int fd, char* result)
+static int SendResult(int fd, const char* result)
 {
 	assert(fd>0);
 
 	if(NULL==result) return 0;
 
-	int Encrypt=0;//no Encrypt now!!
+	/*int Encrypt=0;//no Encrypt now!!
 	char *result2;
 	if(Encrypt)
 	{
@@ -230,12 +258,12 @@ static int SendResult(int fd, char* result)
 	else
 	{
 		result2 = result;
-	}
+	}*/
 
 
-	int err = SendCmd(fd, result2); 
+	int err = SendCmd(fd, result); 
 
-	free(result);
+	//free(result);
 
 	return err;
 }
@@ -316,7 +344,7 @@ static int CreateClientProcess(int fd)
 				break;
 			}
 			
-			const char* result = HandleCmd(fd, _recvBuf);
+			void* result = HandleCmd(fd, _recvBuf);
 
 			err = SendResult(fd, result);
 			if(err <= 0)
@@ -324,6 +352,8 @@ static int CreateClientProcess(int fd)
 				printf("SendResult error\n");
 				break;
 			}
+
+			free(result);
 		}
 
 		if(_recvBuf) free(_recvBuf);
