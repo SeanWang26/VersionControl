@@ -20,18 +20,19 @@
 //#include "openssl/des.h"
 #include <dlfcn.h>
 
+#include "CreateUDPSocket.h"
+
+
 #define TASK_LIB "./libremotetask.so"
 
-extern void* CheckKey(char **key);
-extern void* GetLicence(char** cmdstr);
-extern void* DoUpdate(char **cmdstr);
-extern void* KillProcess(char** cmdstr);
-
 static int _listenfd = -1;
+static int _broadcastfd = -1;
 static int _ctrlfd = -1;
 static int _pid = -1;
 
 const static unsigned int _port = 4011; 
+const static unsigned int _udpport = 4012; 
+
 void * _taskHead = NULL;
 
 static int Readn(int fd, void* buffer, int len)
@@ -132,44 +133,13 @@ static void* HandleCmd(int fd, char *cmdstr)
 		if(remoteservice)
 			cmdrsp = remoteservice(cmdarg_list);
 		else
-			cmdrsp = strdup("error:can't find task\n");
+			cmdrsp = strdup("error:message=can't find task\n");
 	}
 	else
 	{
-		cmdrsp = strdup("error:can load libremoteservice.so\n");
+		cmdrsp = strdup("error:message=can load libremoteservice.so\n");
 	}
 	
-	/*if(cmdarg_list[0]==NULL)
-	{
-		printf("error:no cmd\n");
-		cmdrsp = strdup("error:no cmd\n");	
-	}
-	else if(0==strcmp(cmdarg_list[0], "checkkey"))
-	{
-		printf("CheckKey\n");
-		cmdrsp = CheckKey(cmdarg_list);
-	}
-	else if(0==strcmp(cmdarg_list[0], "getlisence"))
-	{
-		printf("GetLicence\n");
-		cmdrsp = GetLicence(cmdarg_list);
-	}
-	else if(0==strcmp(cmdarg_list[0], "update"))
-	{
-		printf("DoUpdate\n");
-		cmdrsp = DoUpdate(cmdarg_list);
-	}
-	else if(0==strcmp(cmdarg_list[0], "KillProcess"))
-	{
-		printf("KillProcess\n");
-		cmdrsp = KillProcess(cmdarg_list);
-	}
-	else
-	{
-		printf("error:unkown cmd\n");
-		cmdrsp = strdup("error:unkown cmd\n");
-	}*/
-
 	return cmdrsp;
 }
 
@@ -299,23 +269,57 @@ static int InitSocket()
 	return _listenfd;
 }
 
-void acthandler(int num)
+static void process_get_status(void)
 {
-	printf("num=%d\n", num);
+	pid_t pid;
+	int status;
 
-	if(SIGCHLD==num)
+	unsigned int one = 0;
+
+	for ( ;; )
 	{
-		int exitcode=0;
-		pid_t pid = wait(&exitcode);
-		if(_pid==pid)
-		{
-			printf("precess %d quit with %d, _ctrlfd=%d\n", pid, exitcode, _ctrlfd);
+		pid = waitpid(-1, &status, WNOHANG);//not block
+		if (pid == 0) {
+			printf("[process_get_status]WNOHANG\n");
+            return;
+        }
+        
+		if(-1==pid){
+			if (errno == EINTR) {
+				printf("[process_get_status]EINTR\n");
+				continue;
+			}
+
+			if (errno == ECHILD && one) {
+				printf("[process_get_status]ECHILD\n");
+				return;
+			}
+		}
+
+		one = 1;
+
+		if(pid==_pid){
+			printf("[process_get_status]precess %d quit with %d, _ctrlfd=%d\n", pid, status, _ctrlfd);
 			close(_ctrlfd);
 			_ctrlfd = -1;
 			_pid = -1;
+			break;
 		}
-	}	
+	}
 }
+
+void acthandler(int signo)
+{
+	if(signo==SIGCHLD){
+		process_get_status();
+	}
+	else
+	{
+		printf("[acthandler]ge unkonw signo %d\n", signo);
+	}
+
+}
+
 
 static int CreateClientProcess(int fd)
 {
@@ -324,7 +328,7 @@ static int CreateClientProcess(int fd)
 	if(pid==0)
 	{
 		printf("fork new pid=%d, fd=%d\n", pid, fd);
-		//close(_listenfd);
+		close(_listenfd);
 		char *_recvBuf = 0;
 		int RECV_BUFF_LEN = 1024;
 		
@@ -359,7 +363,7 @@ static int CreateClientProcess(int fd)
 		if(_recvBuf) free(_recvBuf);
 		
 		shutdown(fd, SHUT_RD);
-
+		close(fd);
 		exit(0);
 		printf("fork new end%d\n", pid);
 
@@ -378,37 +382,53 @@ static int CreateClientProcess(int fd)
 	return pid;
 }
 
+int handleudp(char *rvbuf)
+{
+
+
+	return 0;
+}
+
+
 static int LoopSocket()
 {
 	assert(_listenfd!=-1);
 	
 	fd_set _fdset;
 
-	struct timeval tv = {10,0};
+	struct timeval tv = {100,0};
 	
 	struct sigaction act;
 	act.sa_handler=acthandler; 
-	sigemptyset(&act.sa_mask);
+	sigemptyset(&act.sa_mask);//empty it
 	act.sa_flags=0;
-	if(sigaction(SIGCHLD,&act,NULL)==-1)exit(1);  
+	if(sigaction(SIGCHLD,&act,NULL)==-1){
+		printf("sigaction error %d\n", errno);////not good...............???
+		return -1;
+	}  
 	printf("LoopSocket num=%d\n", SIGCHLD);
 
 	while(1)
 	{
+		int maxfd=0;
 		FD_ZERO(&_fdset);
-		FD_SET(_listenfd, &_fdset);
-
+		if(_listenfd>0)FD_SET(_listenfd, &_fdset);
+		if(_broadcastfd>0)FD_SET(_broadcastfd, &_fdset);
+		maxfd = (_broadcastfd>_listenfd)?_broadcastfd:_listenfd;
+		
 		tv.tv_sec = 60000;
 		tv.tv_usec = 0;
 
 		printf("while 6000\n");
 		
 		//assume _ctrlfd always big than _listenfd, it should be!
-		int res = select(1+_listenfd , &_fdset, NULL, NULL, &tv);
+		int res = select(1+maxfd , &_fdset, NULL, NULL, &tv);
+		printf("2222222222\n");
 		if(-1==res)
 		{
 			if(EINTR==errno)
 			{
+				printf("select EINTR\n");
 				continue;
 			}
 			else
@@ -439,8 +459,19 @@ static int LoopSocket()
 					//printf("server be occupied by %d\n", _ctrlfd);
 					//SendCmd(tfd, strdup("error:server be occupied\n"));
 					shutdown(tfd, 0);
+					close(tfd);
 				}
 			}
+		}
+		else if(FD_ISSET(_broadcastfd, &_fdset))
+		{
+			printf("11111111\n");
+			struct sockaddr address;
+			socklen_t address_len = sizeof(struct sockaddr);
+			char rvbuf[1024];
+			ssize_t rvsize = recvfrom(_broadcastfd, rvbuf, 1024, 0, &address, &address_len);
+
+			printf("rvsize=%d, rvbuf=%s\n", rvsize, rvbuf);
 		}
 		else
 		{
@@ -457,12 +488,18 @@ static void* RemoteCtrlServer(void *p)
 	if(InitSocket()<0)
 	{
 		printf("listen error\n");
-		exit(0);
+		return (void*)-1;
+	}
+
+	_broadcastfd = create_udp_socket(_udpport);
+	if(_broadcastfd<0)
+	{
+		printf("init udp error\n");
 	}
 
 	LoopSocket();
 
-	return 0;
+	return (void*)0;
 }
 
 static int Start(int wait) 
