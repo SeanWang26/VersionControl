@@ -10,7 +10,7 @@ SRC = lnvrDaemon.c LogCfg.c Daemon.c
 
 #TSRC = RemoteServerMain.c RemoteCtrlService.c Update.c GetLicence.c CheckKey.c KillProcess.c our_md5.c our_md5hl.c Base64.c strDup.c GetHardwareInfo.c
 
-all : libremotetask.so libremoteservice.so lnvrDaemon.out RemoteServer.out udptest.out
+all : libremotetask.so libremoteservice.so lnvrDaemon.out RemoteServer.out udptest.out unixdomaintest.out
 
 lnvrDaemon.out : $(SRC)
 	$(CC) -O2  -Wall -o $@ $^ -lrt -lpthread -ldl
@@ -18,13 +18,16 @@ lnvrDaemon.out : $(SRC)
 RemoteServer.out : RemoteServerMain.c
 	$(CC) -O2 -Wall -o $@ $^ -L./ -lrt -lpthread -ldl
 
-libremoteservice.so : RemoteCtrlService.c RemoteCtrlService.h CreateUDPSocket.c our_md5.c our_md5hl.c Base64.c strDup.c
+libremoteservice.so : RemoteCtrlService.c RemoteCtrlService.h CreateUDPSocket.c UnixDomainSockets.c our_md5.c our_md5hl.c Base64.c strDup.c
 	$(CC) -fPIC -Wall --shared -O2 $^ -o $@
 
 libremotetask.so : CheckKey.c CheckKey.c KillProcess.c GetLicence.c Update.c
 	$(CC) -fPIC -Wall --shared -O2 $^ -o $@
 
 udptest.out : udptest.c CreateUDPSocket.c
+	$(CC) -O2 -Wall -o $@ $^ -L./ -lrt -lpthread -ldl
+	
+unixdomaintest.out : unixdomaintest.c UnixDomainSockets.c
 	$(CC) -O2 -Wall -o $@ $^ -L./ -lrt -lpthread -ldl
 
 .PHONY : all

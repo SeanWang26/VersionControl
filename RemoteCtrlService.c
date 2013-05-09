@@ -470,8 +470,8 @@ static int LoopSocket()
 			socklen_t address_len = sizeof(struct sockaddr);
 			char rvbuf[1024];
 			ssize_t rvsize = recvfrom(_broadcastfd, rvbuf, 1024, 0, &address, &address_len);
-
-			printf("rvsize=%d, rvbuf=%s\n", rvsize, rvbuf);
+			//show sss.sss.sss.sss
+			printf("rvsize=%zu, rvbuf=%s\n", rvsize, rvbuf);
 		}
 		else
 		{
