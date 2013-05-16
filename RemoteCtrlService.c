@@ -19,21 +19,26 @@
 //#include "Base64.h"
 //#include "openssl/des.h"
 #include <dlfcn.h>
+#include <arpa/inet.h>
 
 #include "CreateUDPSocket.h"
 
-
 #define TASK_LIB "./libremotetask.so"
+
+#define SERVICE_BASE_PORT 4011
+#define PROBE_BASE_PORT 40111
 
 static int _listenfd = -1;
 static int _broadcastfd = -1;
 static int _ctrlfd = -1;
 static int _pid = -1;
 
-const static unsigned int _port = 4011; 
-const static unsigned int _udpport = 4012; 
+unsigned int _port = SERVICE_BASE_PORT; 
+const static unsigned int _udpport = PROBE_BASE_PORT; 
 
 void * _taskHead = NULL;
+
+extern void* GetServciePort(char** cmdarglist);
 
 static int Readn(int fd, void* buffer, int len)
 {
@@ -98,7 +103,45 @@ static int ReadCmd(int fd, char* buffer, int len)
 	return err;
 }
 
-static void* HandleCmd(int fd, char *cmdstr)
+static void* ReadUdpCmd(int fd, char* buffer, int len, struct sockaddr *address, socklen_t* address_len)
+{
+	//struct sockaddr address;
+	//socklen_t address_len = sizeof(struct sockaddr);
+	uint8_t header[2];
+	ssize_t rvsize = recvfrom(fd, header, 2, MSG_PEEK, address, address_len);
+	
+	struct sockaddr_in* address_ = (struct sockaddr_in*)&address;
+	char* ip = inet_ntoa(address_->sin_addr);
+	unsigned int port = ntohs(address_->sin_port);
+	//show sss.sss.sss.sss
+	printf("from %s:%d\n", ip, port);
+	
+	if(rvsize<2)
+	{
+		printf("recvfrom error %d, %s\n", errno, strerror(errno));
+		exit(1);
+	}
+	size_t cmdlen = header[1] << 8 | header[0];
+	if(cmdlen>65535)
+	{
+		printf("cmdlen>65535\n");
+		exit(1);
+	}
+	char *rvbuf = (char*)malloc(2+cmdlen+1);//header+cmdstring+"\0"
+	rvsize = recvfrom(fd, rvbuf, 2+cmdlen, 0, address, address_len);
+	if(rvsize<=2)
+	{
+		printf("recvfrom rvsize %zu error %d, %s\n", rvsize, errno, strerror(errno));
+		exit(1);
+	}
+	assert((2+cmdlen)==rvsize);
+	rvbuf[2+cmdlen] = 0;
+
+	return rvbuf+2;//not good........................................to do
+}
+
+
+static void* HandleCmd(int fd, char *cmdstr, struct sockaddr* fromaddr, socklen_t addlen)
 {
 	printf("PaserCmd:%d \n%s\n", (int)strlen(cmdstr), cmdstr);
 	
@@ -114,34 +157,72 @@ static void* HandleCmd(int fd, char *cmdstr)
 	int i=0;
 	while(NULL != (cmdarg_list[i++] = strsep(&curcmdentry, ":\r\n\t")));
 
+	void *cmdrsp = NULL;
 	const char *dlpath = TASK_LIB;
 	void * dl = dlopen(dlpath, RTLD_NOW | RTLD_GLOBAL);
 	void* (*remoteservice)(char** arg);
 	remoteservice = NULL;
 	if (dl == NULL) {
 		fprintf(stderr, "try open %s failed : %s\n",dlpath, dlerror());
+		cmdrsp = strdup("error:message=can load "TASK_LIB"\n");
+		return cmdrsp;
+	}
+
+	remoteservice = dlsym(dl, cmdarg_list[0]);
+	if(remoteservice)
+		cmdrsp = remoteservice(cmdarg_list);
+	else
+		cmdrsp = strdup("error:message=can't find task %s\n");
+
+	dlclose(dl);
+	return cmdrsp;
+}
+static void* HandleUdpCmd(int fd, char *cmdstr, struct sockaddr* fromaddr, socklen_t addlen)
+{
+	printf("PaserCmd:%d \n%s\n", (int)strlen(cmdstr), cmdstr);
+	
+	assert(strlen(cmdstr) >= 2);
+	assert(cmdstr[strlen(cmdstr)-2]=='\r');
+	assert(cmdstr[strlen(cmdstr)-1]=='\n');
+
+	char cmd[strlen(cmdstr)+1];
+	strncpy(cmd, cmdstr, strlen(cmdstr)+1);
+	char *curcmdentry = cmd;
+
+	char* cmdarg_list[256] = {0};
+	int i=0;
+	while(NULL != (cmdarg_list[i++] = strsep(&curcmdentry, ":\r\n\t")));
+
+	void *cmdrsp = NULL;
+	if(strncmp("GetServciePort", cmdarg_list[0], 14)==0)
+	{
+		cmdrsp = GetServciePort(cmdarg_list);
 	}
 	else
 	{
-		printf("try open %s success\n", dlpath);
-	}
-	
-	void *cmdrsp = NULL;
-	if(dl)
-	{
+		const char *dlpath = TASK_LIB;
+		void * dl = dlopen(dlpath, RTLD_NOW | RTLD_GLOBAL);
+		void* (*remoteservice)(char** arg);
+		remoteservice = NULL;
+		if (dl == NULL) {
+			fprintf(stderr, "try open %s failed : %s\n",dlpath, dlerror());
+			cmdrsp = strdup("error:message=can load "TASK_LIB"\n");
+			return cmdrsp;
+		}
+
 		remoteservice = dlsym(dl, cmdarg_list[0]);
 		if(remoteservice)
 			cmdrsp = remoteservice(cmdarg_list);
 		else
-			cmdrsp = strdup("error:message=can't find task\n");
+			cmdrsp = strdup("error:message=can't find task %s\n");
+
+		dlclose(dl);		
 	}
-	else
-	{
-		cmdrsp = strdup("error:message=can load libremoteservice.so\n");
-	}
-	
+
 	return cmdrsp;
 }
+
+
 
 /*static int EncryptResult(const char* result_in, char **result_out, int *result_out_len)
 {
@@ -238,6 +319,18 @@ static int SendResult(int fd, const char* result)
 	return err;
 }
 
+static int SendUdpResult(int fd, const char* result, struct sockaddr* fromaddr, socklen_t addlen)
+{
+	uint16_t reslen = strlen(result);
+	char *tobuf=0;
+	tobuf = malloc(2+reslen+1);
+	memcpy(tobuf, &reslen, sizeof(uint16_t));
+	memcpy(tobuf+2, result, reslen+1);
+	tobuf[2+reslen] = 0;
+	return sendto(fd, tobuf, 2+reslen+1, 0, fromaddr, addlen);
+}
+
+
 static int InitSocket()
 {
 	if((_listenfd = socket(AF_INET,SOCK_STREAM,0))<0)
@@ -254,12 +347,20 @@ static int InitSocket()
 	struct sockaddr_in addr;
 	memset(&addr,0,sizeof(addr));
 	addr.sin_family =AF_INET;
-	addr.sin_port = htons(_port);
 	addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	if((ret=bind(_listenfd, (struct sockaddr *)&addr, sizeof(addr)))<0)
-	{
-		return ret;
-	}
+	do{
+		addr.sin_port = htons(_port);
+		if(bind(_listenfd, (struct sockaddr *)&addr, sizeof(addr))==0){
+			break;
+		}
+
+		++_port;
+		if(_port > (SERVICE_BASE_PORT+100)){
+			close(_listenfd);
+			_listenfd=-1;
+			return -1;
+		}
+	}while(1);
 	
 	if((ret=listen(_listenfd, 1))<0)
 	{
@@ -320,7 +421,6 @@ void acthandler(int signo)
 
 }
 
-
 static int CreateClientProcess(int fd)
 {
 	int pid=0;
@@ -348,7 +448,7 @@ static int CreateClientProcess(int fd)
 				break;
 			}
 			
-			void* result = HandleCmd(fd, _recvBuf);
+			void* result = HandleCmd(fd, _recvBuf, NULL, 0);
 
 			err = SendResult(fd, result);
 			if(err <= 0)
@@ -382,6 +482,29 @@ static int CreateClientProcess(int fd)
 	return pid;
 }
 
+static int CreateUdpClientProcess(int fd)
+{
+	int pid=0;
+	pid=fork();
+	if(pid==0)
+	{
+		struct sockaddr address;
+		socklen_t address_len = sizeof(struct sockaddr);
+		void* result = ReadUdpCmd(_broadcastfd, NULL, 0, &address, &address_len);
+
+		result = HandleUdpCmd(_broadcastfd, result, &address, address_len);
+
+		SendUdpResult(_broadcastfd, result, &address, address_len);
+	}
+	else if(pid>0){}
+	else if(pid==-1)
+	{
+		printf("CreateUdpClientProcess fork error %d, %s\n", errno, strerror(errno));
+	}
+
+	return pid;
+}
+
 int handleudp(char *rvbuf)
 {
 
@@ -396,7 +519,7 @@ static int LoopSocket()
 	
 	fd_set _fdset;
 
-	struct timeval tv = {100,0};
+	//struct timeval tv = {100,0};
 	
 	struct sigaction act;
 	act.sa_handler=acthandler; 
@@ -406,7 +529,6 @@ static int LoopSocket()
 		printf("sigaction error %d\n", errno);////not good...............???
 		return -1;
 	}  
-	printf("LoopSocket num=%d\n", SIGCHLD);
 
 	while(1)
 	{
@@ -416,14 +538,9 @@ static int LoopSocket()
 		if(_broadcastfd>0)FD_SET(_broadcastfd, &_fdset);
 		maxfd = (_broadcastfd>_listenfd)?_broadcastfd:_listenfd;
 		
-		tv.tv_sec = 60000;
-		tv.tv_usec = 0;
-
-		printf("while 6000\n");
-		
-		//assume _ctrlfd always big than _listenfd, it should be!
-		int res = select(1+maxfd , &_fdset, NULL, NULL, &tv);
-		printf("2222222222\n");
+		//tv.tv_sec = 60000;
+		//tv.tv_usec = 0;
+		int res = select(1+maxfd , &_fdset, NULL, NULL, NULL);
 		if(-1==res)
 		{
 			if(EINTR==errno)
@@ -455,9 +572,9 @@ static int LoopSocket()
 				}
 				else
 				{
+					//should handle epipe......................todo......................
 					SendResult(tfd, strdup("error:server be occupied\n"));			
 					//printf("server be occupied by %d\n", _ctrlfd);
-					//SendCmd(tfd, strdup("error:server be occupied\n"));
 					shutdown(tfd, 0);
 					close(tfd);
 				}
@@ -465,19 +582,11 @@ static int LoopSocket()
 		}
 		else if(FD_ISSET(_broadcastfd, &_fdset))
 		{
-			printf("11111111\n");
-			struct sockaddr address;
-			socklen_t address_len = sizeof(struct sockaddr);
-			char rvbuf[1024];
-			ssize_t rvsize = recvfrom(_broadcastfd, rvbuf, 1024, 0, &address, &address_len);
-			//show sss.sss.sss.sss
-			printf("rvsize=%zu, rvbuf=%s\n", rvsize, rvbuf);
+			int pid = CreateUdpClientProcess(_broadcastfd);
+			printf("pid %d for upd server\n", pid);
 		}
 		else
-		{
-
-		}
-	
+		{}
 	}
 
 	return 0;
@@ -491,6 +600,8 @@ static void* RemoteCtrlServer(void *p)
 		return (void*)-1;
 	}
 
+	printf("servcie on port %d\n", _port);
+	
 	_broadcastfd = create_udp_socket(_udpport);
 	if(_broadcastfd<0)
 	{
