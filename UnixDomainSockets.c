@@ -73,7 +73,7 @@ serv_accept(int listenfd, uid_t *uidptr)
     /* obtain the client's uid from its calling address */
     len -= offsetof(struct sockaddr_un, sun_path); /* len of pathname */
     un.sun_path[len] = 0; /* null terminate */
-
+	printf("[sun_path]%s\n", un.sun_path);
     if (stat(un.sun_path, &statbuf) < 0) {
         rval = -2;
         goto errout;

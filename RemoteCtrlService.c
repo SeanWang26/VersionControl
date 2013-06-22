@@ -23,6 +23,8 @@
 
 #include "CreateUDPSocket.h"
 
+#include "UdpCmd.h"
+
 #define TASK_LIB "./libremotetask.so"
 
 #define SERVICE_BASE_PORT 4011
@@ -337,6 +339,8 @@ static int InitSocket()
 	{
 		return -1;
 	}
+
+	fcntl(_listenfd, F_SETFD, 1);
 	
 	int bReuseaddr = 1;
 	int ret = setsockopt(_listenfd,SOL_SOCKET,SO_REUSEADDR,&bReuseaddr,sizeof(int));
@@ -485,6 +489,7 @@ static int CreateClientProcess(int fd)
 static int CreateUdpClientProcess(int fd)
 {
 	int pid=0;
+
 	pid=fork();
 	if(pid==0)
 	{
@@ -495,8 +500,15 @@ static int CreateUdpClientProcess(int fd)
 		result = HandleUdpCmd(_broadcastfd, result, &address, address_len);
 
 		SendUdpResult(_broadcastfd, result, &address, address_len);
+
+		exit(0);
 	}
-	else if(pid>0){}
+	else if(pid>0)
+	{
+		//int status;
+		//int pid = waitpid(pid, &status, 0);//not block
+		//printf("waitpid %d\n", pid);
+	}
 	else if(pid==-1)
 	{
 		printf("CreateUdpClientProcess fork error %d, %s\n", errno, strerror(errno));
@@ -528,7 +540,7 @@ static int LoopSocket()
 	if(sigaction(SIGCHLD,&act,NULL)==-1){
 		printf("sigaction error %d\n", errno);////not good...............???
 		return -1;
-	}  
+	}
 
 	while(1)
 	{
@@ -581,9 +593,12 @@ static int LoopSocket()
 			}
 		}
 		else if(FD_ISSET(_broadcastfd, &_fdset))
-		{
+		{	
+			printf("get for upd server\n");
+			
+
 			int pid = CreateUdpClientProcess(_broadcastfd);
-			printf("pid %d for upd server\n", pid);
+			//printf("pid %d for upd server\n", pid);
 		}
 		else
 		{}
@@ -616,10 +631,21 @@ static void* RemoteCtrlServer(void *p)
 static int Start(int wait) 
 {
 	static pthread_t tid = 0;
-
-	pthread_create(&tid, NULL, RemoteCtrlServer, NULL);
+	printf("sizeof(pthread_t) %d\n", sizeof(pthread_t));
 	
-	if(wait)pthread_join(tid, NULL);
+	if(!wait)
+	{
+		pthread_attr_t attr;
+		pthread_attr_init(&attr);
+		pthread_attr_setdetachstate(&attr,PTHREAD_CREATE_DETACHED);
+		pthread_create(&tid, &attr, RemoteCtrlServer, NULL);
+		pthread_attr_destroy(&attr);
+	}
+	else
+	{
+		pthread_create(&tid, NULL, RemoteCtrlServer, NULL);
+		pthread_join(tid, NULL);
+	}
 
 	return tid;	
 }
