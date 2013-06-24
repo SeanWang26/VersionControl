@@ -21,7 +21,7 @@
 
 #define MAXFILE 65535
 
-
+extern int already_runing();
 extern int Daemon2();
 extern int RemoteCtrlServiceOpen(int);
 extern int RedirectLog(char *pLogDir, int redirectErr, int redirectOut, int redirectIn) ;
@@ -53,6 +53,8 @@ int main(int argc,char **argv)
 
 	int bRedirect = 1;
 
+	int bSingle = 0;
+
 	int bOpenRemoteCtrl = 1;
 	//
 	int RestartInterval = 10; 
@@ -70,6 +72,7 @@ int main(int argc,char **argv)
 		{"redirect", required_argument, 0, 'r'},
 		{"interval", required_argument, 0, 'i'},
 		{"remote", required_argument, 0, 'o'},
+		{"single", required_argument, 0, 's'},
 		{"help", 0, 0, 'h'}
 	};
 
@@ -103,6 +106,12 @@ int main(int argc,char **argv)
 				}
 				
 			break;
+			case 's':
+				printf("single %s\n", optarg);
+				bSingle = strtol(optarg, &c, 10);
+				if(*optarg=='0')
+					bSingle = 0;
+			break;
 			case 'h':
 				printf("%s", Help);
 				break;
@@ -111,6 +120,12 @@ int main(int argc,char **argv)
 				printf("use --help %d\n", opt);
 				exit(0);
 		}
+	}
+
+	if(bSingle && already_runing())
+	{
+		printf("already_runing\n");
+		exit(0);
 	}
 
 #if 1

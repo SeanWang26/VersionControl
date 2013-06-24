@@ -27,7 +27,7 @@ int create_udp_socket(unsigned short int port)
 		return -1;
 	}
 
-	
+	fcntl(fd, F_SETFD, 1);
 
 	if(bind(fd, (struct sockaddr *)&adr_srvr, len_srvr)){
 		printf("create_udp_socket socket bind, %d, %s\n", errno, strerror(errno));
