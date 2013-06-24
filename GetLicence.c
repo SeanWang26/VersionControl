@@ -14,6 +14,9 @@ extern int GetDiskSerialNumber(char* buf, size_t max);
 void* getlisence(char** cmdarglist)
 {
 	char *reschar = malloc(1024);//not good
+
+	system("bash ./bashtest.sh");
+	
 	//1.add cmd head
 	sprintf(reschar, "%s", "getlisence");
 
@@ -44,10 +47,7 @@ void* getlisence(char** cmdarglist)
 	}
 	printf("\n");
 
-	//unsigned resultSize=0;
-	//char* dele = base64Decode(lisencebase64, &resultSize, 0);
-	//if(resultSize>0)
-	//printf("dele:%s\n", dele);
+	system("bash ./bashtest.sh");
 	
 	return reschar;
 }

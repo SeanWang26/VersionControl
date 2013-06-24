@@ -7,6 +7,9 @@
 #include <assert.h>
 #include <string.h>
 
+#include <unistd.h>
+#include <fcntl.h>
+
 #include <sys/socket.h>
 #include <errno.h>
 #include <netinet/in.h>
@@ -27,12 +30,12 @@
 
 #define TASK_LIB "./libremotetask.so"
 
-#define SERVICE_BASE_PORT 4011
+#define SERVICE_BASE_PORT   4011
 #define PROBE_BASE_PORT 40111
 
 static int _listenfd = -1;
 static int _broadcastfd = -1;
-static int _ctrlfd = -1;
+//static int _ctrlfd = -1;
 static int _pid = -1;
 
 unsigned int _port = SERVICE_BASE_PORT; 
@@ -334,7 +337,7 @@ static int SendUdpResult(int fd, const char* result, struct sockaddr* fromaddr, 
 
 
 static int InitSocket()
-{
+{	
 	if((_listenfd = socket(AF_INET,SOCK_STREAM,0))<0)
 	{
 		return -1;
@@ -404,9 +407,7 @@ static void process_get_status(void)
 		one = 1;
 
 		if(pid==_pid){
-			printf("[process_get_status]precess %d quit with %d, _ctrlfd=%d\n", pid, status, _ctrlfd);
-			close(_ctrlfd);
-			_ctrlfd = -1;
+			printf("[process_get_status]precess %d quit with %d in %d\n", pid, status, getpid());
 			_pid = -1;
 			break;
 		}
@@ -431,11 +432,14 @@ static int CreateClientProcess(int fd)
 	pid=fork();
 	if(pid==0)
 	{
-		printf("fork new pid=%d, fd=%d\n", pid, fd);
+		signal(SIGCHLD, SIG_DFL);
 		close(_listenfd);
+		printf("fork new pid=%d, fd=%d\n", pid, fd);
+
+		sleep(2);
+		
 		char *_recvBuf = 0;
 		int RECV_BUFF_LEN = 1024;
-		
 		while((_recvBuf = (char *)malloc(RECV_BUFF_LEN))==NULL)
 		{
 			sleep(1);
@@ -475,7 +479,8 @@ static int CreateClientProcess(int fd)
 	else if(pid>0)
 	{
 		printf("CreateClientProcess fork main %d\n", pid);
-		_ctrlfd = fd;
+		_pid=pid;
+		close(fd);
 		//sleep(2);
 	}
 	else if(pid==-1)
@@ -578,9 +583,9 @@ static int LoopSocket()
 			int tfd = accept(_listenfd, (struct sockaddr *)&addr, &addr_len);
 			if(tfd>0)
 			{
-				if(_ctrlfd == -1)
+				if(_pid == -1)
 				{
-					_pid = CreateClientProcess(tfd);					
+					CreateClientProcess(tfd);					
 				}
 				else
 				{
@@ -597,7 +602,7 @@ static int LoopSocket()
 			printf("get for upd server\n");
 			
 
-			int pid = CreateUdpClientProcess(_broadcastfd);
+			//int pid = CreateUdpClientProcess(_broadcastfd);
 			//printf("pid %d for upd server\n", pid);
 		}
 		else
