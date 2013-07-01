@@ -57,9 +57,36 @@ static int SendUdpResult(int fd, const char* result, struct sockaddr* fromaddr, 
 	return sendto(fd, tobuf, 2+reslen+1, 0, fromaddr, addlen);
 }
 
+void* UninDomainSocketServer(void *p)
+{
+	int fd = create_multicast_socket(0,60001,0);
+	socket_join_group(fd, "224.0.0.88");
+	int i;
+	while(1)
+	{
+		//SendUdpResult(fd, "GetServciePort:\r\n", (struct sockaddr*)&dest_addr, dest_len);
+		//int sens = sendto(fd, "messgess1\n", 11, 0, (struct sockaddr*)&dest_addr, dest_len);
+		//printf("send %d\n", sens);
+		//sens = sendto(fd, "messgess11\n", 12, 0, (struct sockaddr*)&dest_addr, dest_len);
+		//printf("SendUdpResult \n");
+		
+		struct sockaddr_in address;
+		socklen_t address_len = sizeof(struct sockaddr_in);
+		printf("ReadUdpCmd %d\n", i);
+
+		recvfrom(fd, &i, 4, 0, (struct sockaddr *)&address, &address_len);
+
+		printf("ReadUdpCmd %d\n", i);
+
+		//sleep(2);
+	}
+
+}
+
+
 int main(int argc,char **argv) 
 {
-	int fd = create_broadcast_socket(40000);
+	/*int fd = create_broadcast_socket(40000);
 	if(fd<0)
 	{
 		printf("bad fd\n");
@@ -81,6 +108,29 @@ int main(int argc,char **argv)
 
 		sleep(2);
 	}
+*/
+
+	pthread_t tid = 0;
+	pthread_create(&tid, NULL, UninDomainSocketServer, NULL);
+
+	struct sockaddr_in Multi_addr;//多播地址
+	Multi_addr.sin_family=AF_INET;
+	Multi_addr.sin_port=htons(60001);//多播端口
+	Multi_addr.sin_addr.s_addr=inet_addr("224.0.0.88");//多播地址
+	int fd = create_udp_socket(5234);
+
+	socklen_t len=sizeof(struct sockaddr_in);
+	int i=0;
+	while(1)
+	{
+		sendto(fd, &i, 4, 0, (struct sockaddr*)&Multi_addr, len);
+		printf("send\n");
+		sleep(2);
+	}
+
+	sleep(300000);
+
+
 	
 	return 0;
 }

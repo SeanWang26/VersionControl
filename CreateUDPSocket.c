@@ -69,8 +69,6 @@ int create_broadcast_socket(unsigned int port)
 		return -1;
 	}
 
-	
-
 	if(bind(fd, (struct sockaddr *)&adr_srvr, len_srvr)){
 		printf("create_broadcast_socket bind error, %d, %s\n", errno, strerror(errno));
 		close(fd);
@@ -89,7 +87,6 @@ int is_multicast_address(unsigned int address) {
 
 int create_multicast_socket(char *multi_addr, unsigned int port, char* interface_ip)
 {
-
 	//struct sockaddr_in adr_srvr;
 	MAKE_SOCKADDR_IN(adr_srvr,INADDR_ANY,port);
 	int len_srvr = sizeof(adr_srvr);
@@ -99,8 +96,6 @@ int create_multicast_socket(char *multi_addr, unsigned int port, char* interface
 		printf("create_broadcast_socket socket error, %d, %s\n", errno, strerror(errno));
 		return -1;
 	}
-
-	
 
 	if(bind(fd, (struct sockaddr *)&adr_srvr, len_srvr)){
 		printf("create_udp_socket socket bind, %d, %s\n", errno, strerror(errno));
@@ -123,13 +118,17 @@ int create_multicast_socket(char *multi_addr, unsigned int port, char* interface
 	return fd;
 }
 
-int socket_join_group(int fd, unsigned int group_addr, unsigned int interface_addr)
+int socket_join_group(int fd, const char* multi_ip)
 {
-	if (!is_multicast_address(group_addr)) return 0; // ignore this case
-	
+	//if (!is_multicast_address(group_addr)) 
+	//{
+	//	printf("is_multicast_address, %x\n", group_addr);
+	//	return 0; // ignore this case
+	//}
+	printf("socket_join_group\n");
 	struct ip_mreq imr;
-	imr.imr_multiaddr.s_addr = group_addr;
-	imr.imr_interface.s_addr = interface_addr;//
+	imr.imr_multiaddr.s_addr = inet_addr(multi_ip);
+	imr.imr_interface.s_addr = htonl(INADDR_ANY);//
 	if (setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (const char*)&imr, sizeof (struct ip_mreq)) < 0) {
 		printf("socket_join_group IP_ADD_MEMBERSHIP, %d, %s\n", errno, strerror(errno));
 		return -1;

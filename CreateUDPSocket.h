@@ -22,7 +22,7 @@ int create_broadcast_socket(unsigned int port);
 int enable_broadcast(int fd);
 
 int create_multicast_socket(char *multi_addr, unsigned int port, char* interface_ip);
-int socket_join_group(int fd, unsigned int group_addr, unsigned int interface_addr);
+int socket_join_group(int fd, const char* multi_ip);
 int socket_leave_group(int fd, unsigned int group_addr, unsigned int interface_addr);
 
 
