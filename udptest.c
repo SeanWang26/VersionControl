@@ -57,7 +57,7 @@ static int SendUdpResult(int fd, const char* result, struct sockaddr* fromaddr, 
 	return sendto(fd, tobuf, 2+reslen+1, 0, fromaddr, addlen);
 }
 
-void* UninDomainSocketServer(void *p)
+void* MSocketServer(void *p)
 {
 	int fd = create_multicast_socket(0,60001,0);
 	socket_join_group(fd, "224.0.0.88");
@@ -72,11 +72,9 @@ void* UninDomainSocketServer(void *p)
 		
 		struct sockaddr_in address;
 		socklen_t address_len = sizeof(struct sockaddr_in);
-		printf("ReadUdpCmd %d\n", i);
+		int len = recvfrom(fd, &i, 4, 0, (struct sockaddr *)&address, &address_len);
 
-		recvfrom(fd, &i, 4, 0, (struct sockaddr *)&address, &address_len);
-
-		printf("ReadUdpCmd %d\n", i);
+		printf("ReadUdpCmd %d, len %d\n", i, len);
 
 		//sleep(2);
 	}
@@ -111,7 +109,7 @@ int main(int argc,char **argv)
 */
 
 	pthread_t tid = 0;
-	pthread_create(&tid, NULL, UninDomainSocketServer, NULL);
+	//pthread_create(&tid, NULL, MSocketServer, NULL);
 
 	struct sockaddr_in Multi_addr;//∂‡≤•µÿ÷∑
 	Multi_addr.sin_family=AF_INET;
@@ -123,6 +121,7 @@ int main(int argc,char **argv)
 	int i=0;
 	while(1)
 	{
+		i=0x5a;
 		sendto(fd, &i, 4, 0, (struct sockaddr*)&Multi_addr, len);
 		printf("send\n");
 		sleep(2);

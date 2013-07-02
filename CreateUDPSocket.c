@@ -7,6 +7,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <assert.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 //
 int make_socket_nonblocking(int sock) {
@@ -88,7 +91,9 @@ int is_multicast_address(unsigned int address) {
 int create_multicast_socket(char *multi_addr, unsigned int port, char* interface_ip)
 {
 	//struct sockaddr_in adr_srvr;
-	MAKE_SOCKADDR_IN(adr_srvr,INADDR_ANY,port);
+	MAKE_SOCKADDR_IN(adr_srvr,INADDR_ANY,htons(port));
+	//struct sockaddr_in mcast_addr;
+	
 	int len_srvr = sizeof(adr_srvr);
 	
 	int fd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -103,7 +108,15 @@ int create_multicast_socket(char *multi_addr, unsigned int port, char* interface
 		return -1;
 	}
 
+	int loop = 0;
+	setsockopt(fd,IPPROTO_IP,IP_MULTICAST_LOOP,&loop,sizeof(loop));
+
+
 	// Set the sending interface for multicasts, if it's not the default:
+	/*memset(&mcast_addr,0,sizeof(mcast_addr));
+	mcast_addr.sin_family = AF_INET;
+	mcast_addr.sin_addr.s_addr = inet_addr(multi_addr);
+	mcast_addr.sin_port = htons(port);
 	if (adr_srvr.sin_addr.s_addr != INADDR_ANY) {
 		struct in_addr addr;
 		addr.s_addr = adr_srvr.sin_addr.s_addr;
@@ -113,7 +126,7 @@ int create_multicast_socket(char *multi_addr, unsigned int port, char* interface
 			close(fd);
 			return -1;
 		}
-	}
+	}*/
 
 	return fd;
 }

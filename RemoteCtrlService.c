@@ -26,12 +26,14 @@
 
 #include "CreateUDPSocket.h"
 
-#include "UdpCmd.h"
+//#include "UdpCmd.h"
 
 #define TASK_LIB "./libremotetask.so"
 
 #define SERVICE_BASE_PORT   4011
-#define PROBE_BASE_PORT 40111
+#define PROBE_BASE_PORT 60001
+
+#define MCAST_ADDR "224.0.0.88"
 
 static int _listenfd = -1;
 static int _broadcastfd = -1;
@@ -108,44 +110,6 @@ static int ReadCmd(int fd, char* buffer, int len)
 	return err;
 }
 
-static void* ReadUdpCmd(int fd, char* buffer, int len, struct sockaddr *address, socklen_t* address_len)
-{
-	//struct sockaddr address;
-	//socklen_t address_len = sizeof(struct sockaddr);
-	uint8_t header[2];
-	ssize_t rvsize = recvfrom(fd, header, 2, MSG_PEEK, address, address_len);
-	
-	struct sockaddr_in* address_ = (struct sockaddr_in*)&address;
-	char* ip = inet_ntoa(address_->sin_addr);
-	unsigned int port = ntohs(address_->sin_port);
-	//show sss.sss.sss.sss
-	printf("from %s:%d\n", ip, port);
-	
-	if(rvsize<2)
-	{
-		printf("recvfrom error %d, %s\n", errno, strerror(errno));
-		exit(1);
-	}
-	size_t cmdlen = header[1] << 8 | header[0];
-	if(cmdlen>65535)
-	{
-		printf("cmdlen>65535\n");
-		exit(1);
-	}
-	char *rvbuf = (char*)malloc(2+cmdlen+1);//header+cmdstring+"\0"
-	rvsize = recvfrom(fd, rvbuf, 2+cmdlen, 0, address, address_len);
-	if(rvsize<=2)
-	{
-		printf("recvfrom rvsize %zu error %d, %s\n", rvsize, errno, strerror(errno));
-		exit(1);
-	}
-	assert((2+cmdlen)==rvsize);
-	rvbuf[2+cmdlen] = 0;
-
-	return rvbuf+2;//not good........................................to do
-}
-
-
 static void* HandleCmd(int fd, char *cmdstr, struct sockaddr* fromaddr, socklen_t addlen)
 {
 	printf("PaserCmd:%d \n%s\n", (int)strlen(cmdstr), cmdstr);
@@ -182,52 +146,6 @@ static void* HandleCmd(int fd, char *cmdstr, struct sockaddr* fromaddr, socklen_
 	dlclose(dl);
 	return cmdrsp;
 }
-static void* HandleUdpCmd(int fd, char *cmdstr, struct sockaddr* fromaddr, socklen_t addlen)
-{
-	printf("PaserCmd:%d \n%s\n", (int)strlen(cmdstr), cmdstr);
-	
-	assert(strlen(cmdstr) >= 2);
-	assert(cmdstr[strlen(cmdstr)-2]=='\r');
-	assert(cmdstr[strlen(cmdstr)-1]=='\n');
-
-	char cmd[strlen(cmdstr)+1];
-	strncpy(cmd, cmdstr, strlen(cmdstr)+1);
-	char *curcmdentry = cmd;
-
-	char* cmdarg_list[256] = {0};
-	int i=0;
-	while(NULL != (cmdarg_list[i++] = strsep(&curcmdentry, ":\r\n\t")));
-
-	void *cmdrsp = NULL;
-	if(strncmp("GetServciePort", cmdarg_list[0], 14)==0)
-	{
-		cmdrsp = GetServciePort(cmdarg_list);
-	}
-	else
-	{
-		const char *dlpath = TASK_LIB;
-		void * dl = dlopen(dlpath, RTLD_NOW | RTLD_GLOBAL);
-		void* (*remoteservice)(char** arg);
-		remoteservice = NULL;
-		if (dl == NULL) {
-			fprintf(stderr, "try open %s failed : %s\n",dlpath, dlerror());
-			cmdrsp = strdup("error:message=can load "TASK_LIB"\n");
-			return cmdrsp;
-		}
-
-		remoteservice = dlsym(dl, cmdarg_list[0]);
-		if(remoteservice)
-			cmdrsp = remoteservice(cmdarg_list);
-		else
-			cmdrsp = strdup("error:message=can't find task %s\n");
-
-		dlclose(dl);		
-	}
-
-	return cmdrsp;
-}
-
-
 
 /*static int EncryptResult(const char* result_in, char **result_out, int *result_out_len)
 {
@@ -324,59 +242,6 @@ static int SendResult(int fd, const char* result)
 	return err;
 }
 
-static int SendUdpResult(int fd, const char* result, struct sockaddr* fromaddr, socklen_t addlen)
-{
-	uint16_t reslen = strlen(result);
-	char *tobuf=0;
-	tobuf = malloc(2+reslen+1);
-	memcpy(tobuf, &reslen, sizeof(uint16_t));
-	memcpy(tobuf+2, result, reslen+1);
-	tobuf[2+reslen] = 0;
-	return sendto(fd, tobuf, 2+reslen+1, 0, fromaddr, addlen);
-}
-
-
-static int InitSocket()
-{	
-	if((_listenfd = socket(AF_INET,SOCK_STREAM,0))<0)
-	{
-		return -1;
-	}
-
-	fcntl(_listenfd, F_SETFD, 1);
-	
-	int bReuseaddr = 1;
-	int ret = setsockopt(_listenfd,SOL_SOCKET,SO_REUSEADDR,&bReuseaddr,sizeof(int));
-	if(ret<0)
-	{
-		return ret;
-	}
-	struct sockaddr_in addr;
-	memset(&addr,0,sizeof(addr));
-	addr.sin_family =AF_INET;
-	addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	do{
-		addr.sin_port = htons(_port);
-		if(bind(_listenfd, (struct sockaddr *)&addr, sizeof(addr))==0){
-			break;
-		}
-
-		++_port;
-		if(_port > (SERVICE_BASE_PORT+100)){
-			close(_listenfd);
-			_listenfd=-1;
-			return -1;
-		}
-	}while(1);
-	
-	if((ret=listen(_listenfd, 1))<0)
-	{
-		return ret;
-	}
-
-	return _listenfd;
-}
-
 static void process_get_status(void)
 {
 	pid_t pid;
@@ -434,6 +299,7 @@ static int CreateClientProcess(int fd)
 	{
 		signal(SIGCHLD, SIG_DFL);
 		close(_listenfd);
+		close(_broadcastfd);
 		printf("fork new pid=%d, fd=%d\n", pid, fd);
 
 		sleep(2);
@@ -491,37 +357,6 @@ static int CreateClientProcess(int fd)
 	return pid;
 }
 
-static int CreateUdpClientProcess(int fd)
-{
-	int pid=0;
-
-	pid=fork();
-	if(pid==0)
-	{
-		struct sockaddr address;
-		socklen_t address_len = sizeof(struct sockaddr);
-		void* result = ReadUdpCmd(_broadcastfd, NULL, 0, &address, &address_len);
-
-		result = HandleUdpCmd(_broadcastfd, result, &address, address_len);
-
-		SendUdpResult(_broadcastfd, result, &address, address_len);
-
-		exit(0);
-	}
-	else if(pid>0)
-	{
-		//int status;
-		//int pid = waitpid(pid, &status, 0);//not block
-		//printf("waitpid %d\n", pid);
-	}
-	else if(pid==-1)
-	{
-		printf("CreateUdpClientProcess fork error %d, %s\n", errno, strerror(errno));
-	}
-
-	return pid;
-}
-
 int handleudp(char *rvbuf)
 {
 
@@ -529,6 +364,79 @@ int handleudp(char *rvbuf)
 	return 0;
 }
 
+static int InitSocket()
+{	
+	//create service interface
+	if((_listenfd = socket(AF_INET,SOCK_STREAM,0))<0)
+	{
+		return -1;
+	}
+
+	fcntl(_listenfd, F_SETFD, 1);
+	
+	int bReuseaddr = 1;
+	int ret = setsockopt(_listenfd,SOL_SOCKET,SO_REUSEADDR,&bReuseaddr,sizeof(int));
+	if(ret<0)
+	{
+		return ret;
+	}
+	struct sockaddr_in addr;
+	memset(&addr,0,sizeof(addr));
+	addr.sin_family =AF_INET;
+	addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	do{
+		addr.sin_port = htons(_port);
+		if(bind(_listenfd, (struct sockaddr *)&addr, sizeof(addr))==0){
+			break;
+		}
+
+		++_port;
+		if(_port > (SERVICE_BASE_PORT+100)){
+			close(_listenfd);
+			_listenfd=-1;
+			return -1;
+		}
+	}while(1);
+	
+	if((ret=listen(_listenfd, 1))<0)
+	{
+		return ret;
+	}
+
+	//create m interface
+	struct sockaddr_in adr_srvr;
+    adr_srvr.sin_family = AF_INET;
+    adr_srvr.sin_addr.s_addr = htonl(INADDR_ANY);
+    adr_srvr.sin_port = htons(_udpport);
+	int len_srvr = sizeof(adr_srvr);
+	_broadcastfd = socket(AF_INET, SOCK_DGRAM, 0);
+	if(_broadcastfd==-1){
+		printf("m socket error, %d, %s\n", errno, strerror(errno));
+		return -1;
+	}
+
+	fcntl(_broadcastfd, F_SETFD, 1);
+
+	if(bind(_broadcastfd, (struct sockaddr *)&adr_srvr, len_srvr)){
+		printf("m socket bind, %d, %s\n", errno, strerror(errno));
+		close(_broadcastfd);
+		return -1;
+	}
+
+	int loop = 0;
+	setsockopt(_broadcastfd,IPPROTO_IP,IP_MULTICAST_LOOP,&loop,sizeof(loop));
+	
+	struct ip_mreq imr;
+	imr.imr_multiaddr.s_addr = inet_addr(MCAST_ADDR);
+	imr.imr_interface.s_addr = htonl(INADDR_ANY);
+	if (setsockopt(_broadcastfd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (const char*)&imr, sizeof (struct ip_mreq)) < 0) {
+		printf("IP_ADD_MEMBERSHIP, %d, %s\n", errno, strerror(errno));
+		return -1;
+	}
+
+	printf("_broadcastfd %d, %p\n", _broadcastfd, &_broadcastfd);
+	return _listenfd;
+}
 
 static int LoopSocket()
 {
@@ -548,7 +456,7 @@ static int LoopSocket()
 	}
 
 	while(1)
-	{
+	{	
 		int maxfd=0;
 		FD_ZERO(&_fdset);
 		if(_listenfd>0)FD_SET(_listenfd, &_fdset);
@@ -600,10 +508,31 @@ static int LoopSocket()
 		else if(FD_ISSET(_broadcastfd, &_fdset))
 		{	
 			printf("get for upd server\n");
-			
+			int i=0;
+			struct sockaddr_in from_addr;
+			socklen_t from_addr_len = sizeof(struct sockaddr_in);
+			int err = recvfrom(_broadcastfd, &i, 4, 0, (struct sockaddr *)&from_addr, &from_addr_len);
+			printf("_broadcastfd%d, %p, msg from %s, %d, err%d, %s\n", _broadcastfd, &_broadcastfd, inet_ntoa(from_addr.sin_addr), ntohs(from_addr.sin_port), err, strerror(errno));
+			if(err==-1)
+			{
+				break;
+			}
+			if(i==0x5a)
+			{
+				printf("_broadcastfd yes\n");
+				//notify server inerface
+				struct sockaddr_in listen_addr;
+				socklen_t addrlen = sizeof(listen_addr);
+				if(getsockname(_listenfd, (struct sockaddr *)&listen_addr, &addrlen)==-1)
+				{
+					printf("[getsockname]errno=%d;\n", errno);
+				}
+				char ack[64];
+				sprintf(ack, "notify:ip=%s:port=%d", inet_ntoa(listen_addr.sin_addr), listen_addr.sin_port);
+				
+				sendto(_broadcastfd, ack, strlen(ack)+1, 0, (struct sockaddr*)&from_addr, from_addr_len);
+			}
 
-			//int pid = CreateUdpClientProcess(_broadcastfd);
-			//printf("pid %d for upd server\n", pid);
 		}
 		else
 		{}
@@ -621,12 +550,6 @@ static void* RemoteCtrlServer(void *p)
 	}
 
 	printf("servcie on port %d\n", _port);
-	
-	_broadcastfd = create_udp_socket(_udpport);
-	if(_broadcastfd<0)
-	{
-		printf("init udp error\n");
-	}
 
 	LoopSocket();
 
@@ -636,13 +559,13 @@ static void* RemoteCtrlServer(void *p)
 static int Start(int wait) 
 {
 	static pthread_t tid = 0;
-	printf("sizeof(pthread_t) %d\n", sizeof(pthread_t));
+	printf("sizeof(pthread_t) %lu\n", sizeof(pthread_t));
 	
 	if(!wait)
 	{
 		pthread_attr_t attr;
 		pthread_attr_init(&attr);
-		pthread_attr_setdetachstate(&attr,PTHREAD_CREATE_DETACHED);
+		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 		pthread_create(&tid, &attr, RemoteCtrlServer, NULL);
 		pthread_attr_destroy(&attr);
 	}

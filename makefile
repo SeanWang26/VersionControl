@@ -1,4 +1,4 @@
-CC = gcc -ggdb3 
+CC = gcc 
 
 CCC = g++ -ggdb3 
 
