@@ -372,7 +372,7 @@ static int InitSocket()
 		return -1;
 	}
 
-	fcntl(_listenfd, F_SETFD, 1);
+	fcntl(_listenfd, F_SETFD, FD_CLOEXEC);
 	
 	int bReuseaddr = 1;
 	int ret = setsockopt(_listenfd,SOL_SOCKET,SO_REUSEADDR,&bReuseaddr,sizeof(int));
@@ -415,7 +415,7 @@ static int InitSocket()
 		return -1;
 	}
 
-	fcntl(_broadcastfd, F_SETFD, 1);
+	fcntl(_broadcastfd, F_SETFD, FD_CLOEXEC);
 
 	if(bind(_broadcastfd, (struct sockaddr *)&adr_srvr, len_srvr)){
 		printf("m socket bind, %d, %s\n", errno, strerror(errno));
@@ -528,7 +528,7 @@ static int LoopSocket()
 					printf("[getsockname]errno=%d;\n", errno);
 				}
 				char ack[64];
-				sprintf(ack, "notify:ip=%s:port=%d", inet_ntoa(listen_addr.sin_addr), listen_addr.sin_port);
+				sprintf(ack, "notifyaddr:ip=%s:port=%d", inet_ntoa(listen_addr.sin_addr), ntohs(listen_addr.sin_port));
 				
 				sendto(_broadcastfd, ack, strlen(ack)+1, 0, (struct sockaddr*)&from_addr, from_addr_len);
 			}
